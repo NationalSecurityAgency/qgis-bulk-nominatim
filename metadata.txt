@@ -1,0 +1,17 @@
+[general]
+name=Bulk Nominatim GeoCoding
+qgisMinimumVersion=2.8
+description=Bulk nominatim geocoding
+version=0.1
+author=C Hamilton
+email=adenaculture@gmail.com
+about=Bulk nominatim geocoding
+homepage=https://github.com/NationalSecurityAgency/qgis-bulk-nominatim
+tracker=https://github.com/NationalSecurityAgency/qgis-bulk-nominatim/issues
+repository=https://github.com/NationalSecurityAgency/qgis-bulk-nominatim
+tags=geocoding,nominatim,address search
+category=Plugins
+icon=icon.png
+experimental=False
+deprecated=False
+#changelog=
