@@ -55,9 +55,11 @@ class ReverseGeocodeTool(QgsMapTool):
                 "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
         self.reply = QgsNetworkAccessManager.instance().get(request)
         self.reply.finished.connect(self.replyFinished)
+        if not self.reverseGeoCodeDialog.isVisible():
+            self.show()
 
     def setText(self, text):
-        self.reverseGeoCodeDialog.addressTextEdit.setPlainText(text)
+        self.reverseGeoCodeDialog.addressLineEdit.setText(text)
         
     @pyqtSlot()
     def replyFinished(self):

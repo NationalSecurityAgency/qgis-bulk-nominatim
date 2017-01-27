@@ -31,6 +31,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
     def accept(self):
         '''process and geocode the addresses'''
         selected_tab = self.tabWidget.currentIndex()
+        # Clear the Results Dialog box
+        self.resultsTextEdit.clear()
         if selected_tab == 0:
             self.processCSVFile()
         elif selected_tab == 1:
@@ -41,9 +43,77 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
     def reverseGeocode(self):
         layer = self.mMapLayerComboBox.currentLayer()
         if not layer:
-            self.iface.messageBar().pushMessage("", "No valid vector layer to reverse geocode" , level=QgsMessageBar.WARNING, duration=2)
+            self.iface.messageBar().pushMessage("", "No valid point vector layer to reverse geocode" , level=QgsMessageBar.WARNING, duration=2)
             return
+        
+        self.numAddress = layer.featureCount()
+        if self.numAddress > self.settings.maxAddress():
+            self.iface.messageBar().pushMessage("", "Maximum geocodes are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            return
+            
+        layername = unicode(self.layerLineEdit.text())
+        self.pointLayer = QgsVectorLayer("point?crs=epsg:4326", layername, "memory")
+        self.provider = self.pointLayer.dataProvider()
+        self.provider.addAttributes([QgsField("display_name", QVariant.String)])
+        self.pointLayer.updateFields()
+        if self.showLabelCheckBox.checkState():
+            # Display labels
+            label = QgsPalLayerSettings()
+            label.readFromLayer(self.pointLayer)
+            label.enabled = True
+            label.fieldName = 'display_name'
+            label.placement= QgsPalLayerSettings.AroundPoint
+            label.setDataDefinedProperty(QgsPalLayerSettings.Size,True,True,'8','')
+            label.writeToLayer(self.pointLayer)
+        
+        canvasCRS = self.canvas.mapRenderer().destinationCrs()
+        epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
+        transform = QgsCoordinateTransform(canvasCRS, epsg4326)
+
+        fields = layer.pendingFields()
+        iter = layer.getFeatures()
+        self.geocodes = {}
+        
+        for feature in iter:
+            # already know that this is a point vector layer
+            pt = feature.geometry().asPoint()
+            # make sure the coordinates are in EPSG:4326
+            pt = transform.transform(pt.x(), pt.y())
+            lat = str(pt.y())
+            lon = str(pt.x())
+            url = self.settings.reverseURL()+'?format=json&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=0'
+            qurl = QUrl(url)
+            request = QNetworkRequest(qurl)
+            request.setRawHeader("User-Agent",
+                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
+            reply = QgsNetworkAccessManager.instance().get(request)
+            self.geocodes[reply] = pt
+            reply.finished.connect(self.reverseGeoFinished)
     
+    @pyqtSlot()
+    def reverseGeoFinished(self):
+        reply = self.sender()
+        error = reply.error()
+        address = ''
+        if error == QNetworkReply.NoError:
+            data = reply.readAll().data()
+            jd = json.loads(data)
+            if 'display_name' in jd:
+                address = jd['display_name']
+        pt = self.geocodes[reply]
+        feature = QgsFeature()
+        feature.setGeometry(QgsGeometry.fromPoint(pt))
+        feature.setAttributes([address])
+        self.provider.addFeatures([feature])
+        
+        self.numAddress -= 1
+        if self.numAddress <= 0:
+            self.pointLayer.updateExtents()
+            QgsMapLayerRegistry.instance().addMapLayer(self.pointLayer)
+            self.resultsTextEdit.appendPlainText('Processing Complete!')
+            
+        reply.deleteLater()
+
     def processCSVFile(self):
         self.geocodes = {}
         addresses = []
@@ -72,7 +142,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 if full_address_col == -1:
                     # We have selected the individual columns to parse
                     url = self.settings.searchURL() + '?'
-                    if street_num_col >= 0 or street_name_col >= 0:
+                    if street_name_col >= 0:
                         num = ''
                         name = ''
                         if street_num_col >= 0:
@@ -112,12 +182,15 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 urls.append(url)
                 addresses.append(','.join(row))
                 self.numAddress += 1
-                
+        # Check to make sure we are not exceeding the maximum # of requests
+        if self.numAddress > self.settings.maxAddress():
+            self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            return
         # Geocode all the addresses
         if self.numAddress:
             self.createPointLayer()
         for x, url in enumerate(urls):
-            self.resultsTextEdit.appendPlainText(url)
+            # self.resultsTextEdit.appendPlainText(url)
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
@@ -137,7 +210,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         return url
     
     def processFreeFormData(self):
-        print "processFreeFormData"
         self.geocodes = {}
         addresses = []
         
@@ -156,6 +228,10 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.numAddress += 1
             addresses.append(address)
             
+        if self.numAddress > self.settings.maxAddress():
+            self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            return
+            
         if self.numAddress:
             self.createPointLayer()
         for address in addresses:
@@ -165,7 +241,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 url = self.settings.searchURL()+'?q='+address2+'&format=json&limit=1&polygon=0&addressdetails=1'
             else:
                 url = self.settings.searchURL()+'?q='+address2+'&format=json&limit=1&polygon=0&addressdetails=0'
-            print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
@@ -184,59 +259,58 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         reply = self.sender()
         error = reply.error()
         origaddr = self.geocodes[reply]
-        if error == QNetworkReply.NoError:
-            data = reply.readAll().data()
-            jd = json.loads(data)
-            if len(jd) == 0:
-                self.resultsTextEdit.appendPlainText('Could not find: ' + origaddr)
-                return
-            lat = self.fieldValidate(jd[0], 'lat')
-            lon = self.fieldValidate(jd[0], 'lon')
-            if not lat or not lon:
-                self.resultsTextEdit.appendPlainText('Could not find: ' + origaddr)
-                return
-            
-            feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
-            display_name = self.fieldValidate(jd[0], 'display_name')
+        try:
+            if error == QNetworkReply.NoError:
+                data = reply.readAll().data()
+                jd = json.loads(data)
+                if len(jd) == 0:
+                    raise ValueError('Could not find: ' + origaddr)
+                lat = self.fieldValidate(jd[0], 'lat')
+                lon = self.fieldValidate(jd[0], 'lon')
+                if not lat or not lon:
+                    raise ValueError('Could not find: ' + origaddr)
+                
+                feature = QgsFeature()
+                feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
+                display_name = self.fieldValidate(jd[0], 'display_name')
 
-            if self.detailedAddressCheckBox.checkState():
-                osm_type = self.fieldValidate(jd[0], 'osm_type')
-                osm_class = self.fieldValidate(jd[0], 'class')
-                type = self.fieldValidate(jd[0], 'type')
-                house_number = ''
-                road = ''
-                neighbourhood = ''
-                locality = ''
-                town = ''
-                city = ''
-                county = ''
-                state = ''
-                postcode = ''
-                country = ''
-                country_code = ''
-                if 'address' in jd[0]:
-                    house_number = self.fieldValidate(jd[0]['address'], 'house_number')
-                    road = self.fieldValidate(jd[0]['address'], 'road')
-                    neighbourhood = self.fieldValidate(jd[0]['address'], 'neighbourhood')
-                    locality = self.fieldValidate(jd[0]['address'], 'locality')
-                    town = self.fieldValidate(jd[0]['address'], 'town')
-                    city = self.fieldValidate(jd[0]['address'], 'city')
-                    county = self.fieldValidate(jd[0]['address'], 'county')
-                    state = self.fieldValidate(jd[0]['address'], 'state')
-                    postcode = self.fieldValidate(jd[0]['address'], 'postcode')
-                    country = self.fieldValidate(jd[0]['address'], 'country')
-                    country_code = self.fieldValidate(jd[0]['address'], 'country_code')
-                feature.setAttributes([osm_type, osm_class, type, origaddr, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
-                self.provider.addFeatures([feature])
+                if self.detailedAddressCheckBox.checkState():
+                    osm_type = self.fieldValidate(jd[0], 'osm_type')
+                    osm_class = self.fieldValidate(jd[0], 'class')
+                    type = self.fieldValidate(jd[0], 'type')
+                    house_number = ''
+                    road = ''
+                    neighbourhood = ''
+                    locality = ''
+                    town = ''
+                    city = ''
+                    county = ''
+                    state = ''
+                    postcode = ''
+                    country = ''
+                    country_code = ''
+                    if 'address' in jd[0]:
+                        house_number = self.fieldValidate(jd[0]['address'], 'house_number')
+                        road = self.fieldValidate(jd[0]['address'], 'road')
+                        neighbourhood = self.fieldValidate(jd[0]['address'], 'neighbourhood')
+                        locality = self.fieldValidate(jd[0]['address'], 'locality')
+                        town = self.fieldValidate(jd[0]['address'], 'town')
+                        city = self.fieldValidate(jd[0]['address'], 'city')
+                        county = self.fieldValidate(jd[0]['address'], 'county')
+                        state = self.fieldValidate(jd[0]['address'], 'state')
+                        postcode = self.fieldValidate(jd[0]['address'], 'postcode')
+                        country = self.fieldValidate(jd[0]['address'], 'country')
+                        country_code = self.fieldValidate(jd[0]['address'], 'country_code')
+                    feature.setAttributes([osm_type, osm_class, type, origaddr, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                    self.provider.addFeatures([feature])
+                else:
+                    # Display only the resulting output address
+                    feature.setAttributes([display_name])
+                    self.provider.addFeatures([feature])
             else:
-                # Display only the resulting output address
-                feature.setAttributes([display_name])
-                self.provider.addFeatures([feature])
-        else:
-            self.resultsTextEdit.appendPlainText('Error occurred on address: ' + origaddr)
-            errorMessage = self.getErrorMessage(error)
-            self.resultsTextEdit.appendPlainText(errorMessage)
+                raise ValueError('Error occurred on address: ' + origaddr)
+        except Exception as e:
+            self.resultsTextEdit.appendPlainText(unicode(e))
                 
         self.numAddress -= 1
         if self.numAddress <= 0:
@@ -271,6 +345,15 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         else:
             self.provider.addAttributes([QgsField("display_name", QVariant.String)])
         self.pointLayer.updateFields()
+        if self.showLabelCheckBox.checkState():
+            # Display labels
+            label = QgsPalLayerSettings()
+            label.readFromLayer(self.pointLayer)
+            label.enabled = True
+            label.fieldName = 'display_name'
+            label.placement= QgsPalLayerSettings.AroundPoint
+            label.setDataDefinedProperty(QgsPalLayerSettings.Size,True,True,'8','')
+            label.writeToLayer(self.pointLayer)
         
     def csvBrowseAction(self):
         newname = QFileDialog.getOpenFileName(None, "Input CSV File",
@@ -341,104 +424,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         self.stateComboBox.clear()
         self.countryComboBox.clear()
         self.postalCodeComboBox.clear()
-        
-    def getErrorMessage(self, error):
-        if error == QNetworkReply.NoError:
-            # No error condition.
-            # Note: When the HTTP protocol returns a redirect no error will be reported.
-            # You can check if there is a redirect with the
-            # QNetworkRequest::RedirectionTargetAttribute attribute.
-            return ''
-
-        if error == QNetworkReply.ConnectionRefusedError:
-            return self.tr('The remote server refused the connection'
-                           ' (the server is not accepting requests)')
-
-        if error == QNetworkReply.RemoteHostClosedError :
-            return self.tr('The remote server closed the connection prematurely,'
-                           ' before the entire reply was received and processed')
-
-        if error == QNetworkReply.HostNotFoundError :
-            return self.tr('The remote host name was not found (invalid hostname)')
-
-        if error == QNetworkReply.TimeoutError :
-            return self.tr('The connection to the remote server timed out')
-
-        if error == QNetworkReply.OperationCanceledError :
-            return self.tr('The operation was canceled via calls to abort()'
-                           ' or close() before it was finished.')
-
-        if error == QNetworkReply.SslHandshakeFailedError :
-            return self.tr('The SSL/TLS handshake failed'
-                           ' and the encrypted channel could not be established.'
-                           ' The sslErrors() signal should have been emitted.')
-
-        if error == QNetworkReply.TemporaryNetworkFailureError :
-            return self.tr('The connection was broken'
-                           ' due to disconnection from the network,'
-                           ' however the system has initiated roaming'
-                           ' to another access point.'
-                           ' The request should be resubmitted and will be processed'
-                           ' as soon as the connection is re-established.')
-
-        if error == QNetworkReply.ProxyConnectionRefusedError :
-            return self.tr('The connection to the proxy server was refused'
-                           ' (the proxy server is not accepting requests)')
-
-        if error == QNetworkReply.ProxyConnectionClosedError :
-            return self.tr('The proxy server closed the connection prematurely,'
-                           ' before the entire reply was received and processed')
-
-        if error == QNetworkReply.ProxyNotFoundError :
-            return self.tr('The proxy host name was not found (invalid proxy hostname)')
-
-        if error == QNetworkReply.ProxyTimeoutError :
-            return self.tr('The connection to the proxy timed out'
-                           ' or the proxy did not reply in time to the request sent')
-
-        if error == QNetworkReply.ProxyAuthenticationRequiredError :
-            return self.tr('The proxy requires authentication'
-                           ' in order to honour the request'
-                           ' but did not accept any credentials offered (if any)')
-
-        if error == QNetworkReply.ContentAccessDenied :
-            return self.tr('The access to the remote content was denied'
-                           ' (similar to HTTP error 401)'),
-        if error == QNetworkReply.ContentOperationNotPermittedError :
-            return self.tr('The operation requested on the remote content is not permitted')
-
-        if error == QNetworkReply.ContentNotFoundError :
-            return self.tr('The remote content was not found at the server'
-                           ' (similar to HTTP error 404)')
-        if error == QNetworkReply.AuthenticationRequiredError :
-            return self.tr('The remote server requires authentication to serve the content'
-                           ' but the credentials provided were not accepted (if any)')
-
-        if error == QNetworkReply.ContentReSendError :
-            return self.tr('The request needed to be sent again, but this failed'
-                           ' for example because the upload data could not be read a second time.')
-
-        if error == QNetworkReply.ProtocolUnknownError :
-            return self.tr('The Network Access API cannot honor the request'
-                           ' because the protocol is not known')
-
-        if error == QNetworkReply.ProtocolInvalidOperationError :
-            return self.tr('the requested operation is invalid for this protocol')
-
-        if error == QNetworkReply.UnknownNetworkError :
-            return self.tr('An unknown network-related error was detected')
-
-        if error == QNetworkReply.UnknownProxyError :
-            return self.tr('An unknown proxy-related error was detected')
-
-        if error == QNetworkReply.UnknownContentError :
-            return self.tr('An unknown error related to the remote content was detected')
-
-        if error == QNetworkReply.ProtocolFailure :
-            return self.tr('A breakdown in protocol was detected'
-                           ' (parsing error, invalid or unexpected responses, etc.)')
-
-        return self.tr('An unknown network-related error was detected')
     
     def read_csv_header(self, iface, filename):
         try:

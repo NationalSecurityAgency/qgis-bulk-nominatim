@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="csvTab">
       <attribute name="title">
@@ -252,18 +252,29 @@
      <item>
       <widget class="QLineEdit" name="layerLineEdit">
        <property name="text">
-        <string>Geocode Results</string>
+        <string>Search Results</string>
        </property>
       </widget>
      </item>
     </layout>
    </item>
    <item>
-    <widget class="QCheckBox" name="detailedAddressCheckBox">
-     <property name="text">
-      <string>Include Detailed Address Results</string>
-     </property>
-    </widget>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QCheckBox" name="showLabelCheckBox">
+       <property name="text">
+        <string>Label Geocoded Points</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="detailedAddressCheckBox">
+       <property name="text">
+        <string>Include Detailed Address Results</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <spacer name="verticalSpacer_2">
