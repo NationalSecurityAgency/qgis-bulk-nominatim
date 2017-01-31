@@ -47,7 +47,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             return
         
         self.numAddress = layer.featureCount()
-        if self.numAddress > self.settings.maxAddress():
+        if self.numAddress > self.settings.maxAddress:
             self.iface.messageBar().pushMessage("", "Maximum geocodes are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
             
@@ -183,7 +183,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 addresses.append(','.join(row))
                 self.numAddress += 1
         # Check to make sure we are not exceeding the maximum # of requests
-        if self.numAddress > self.settings.maxAddress():
+        if self.numAddress > self.settings.maxAddress:
             self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
         # Geocode all the addresses
@@ -228,7 +228,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.numAddress += 1
             addresses.append(address)
             
-        if self.numAddress > self.settings.maxAddress():
+        if self.numAddress > self.settings.maxAddress:
             self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
             

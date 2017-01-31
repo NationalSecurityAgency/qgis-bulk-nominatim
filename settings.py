@@ -20,32 +20,33 @@ class SettingsWidget(QDialog, FORM_CLASS):
         self.buttonBox.button(QDialogButtonBox.RestoreDefaults).clicked.connect(self.restore)
         settings = QSettings()
         self.nominatimURL = settings.value('/BulkNominatim/URL', NOMURL)
-        self.maxResults = int(settings.value('/BulkNominatim/maxResults', 100))
+        self.maxAddress = int(settings.value('/BulkNominatim/maxAddress', 100))
+        self.levelOfDetail = int(settings.value('/BulkNominatim/levelOfDetail', 18))
         self.nomServiceLineEdit.setText(self.nominatimURL)
-        self.maxRequestLineEdit.setText(str(self.maxResults))
+        self.maxRequestLineEdit.setText(str(self.maxAddress))
         
     def accept(self):
         '''Accept the settings and save them for next time.'''
         settings = QSettings()
-        self.nominatimURL = self.nomServiceLineEdit.text()
+        self.nominatimURL = self.nomServiceLineEdit.text().strip()
         settings.setValue('/BulkNominatim/URL', self.nominatimURL)
         try:
-            self.maxResults = int(self.maxRequestLineEdit.text())
+            self.maxAddress = int(self.maxRequestLineEdit.text())
         except:
-            self.maxResults = 100
-            self.maxRequestLineEdit.setText(str(self.maxResults))
-        settings.setValue('/BulkNominatim/maxResults', self.maxResults)
+            self.maxAddress = 100
+            self.maxRequestLineEdit.setText(str(self.maxAddress))
+        settings.setValue('/BulkNominatim/maxAddress', self.maxAddress)
+        self.levelOfDetail = self.detailSpinBox.value()
+        settings.setValue('/BulkNominatim/levelOfDetail', self.levelOfDetail)
         self.close()
         
     def restore(self):
         self.nomServiceLineEdit.setText(NOMURL)
         self.maxRequestLineEdit.setText(str(100))
+        self.detailSpinBox.setValue(18)
 
     def searchURL(self):
         return self.nominatimURL+"/search"
         
     def reverseURL(self):
         return self.nominatimURL+"/reverse"
-        
-    def maxAddress(self):
-        return self.maxResults

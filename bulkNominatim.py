@@ -50,6 +50,7 @@ class BulkNominatim:
         try:
             if not isinstance(tool, ReverseGeocodeTool):
                 self.reverseGeocodeAction.setChecked(False)
+                self.reverseGeocodeTool.clearSelection()
         except:
             pass
 
