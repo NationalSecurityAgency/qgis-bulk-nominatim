@@ -22,6 +22,7 @@ class ReverseGeocodeTool(QgsMapTool):
         self.settings = settings
         self.reverseGeoCodeDialog = ReverseGeocodeDialog(self, self.iface, self.iface.mainWindow())
         self.iface.addDockWidget(Qt.TopDockWidgetArea, self.reverseGeoCodeDialog)
+        self.reverseGeoCodeDialog.hide()
         self.epsg4326 = QgsCoordinateReferenceSystem('EPSG:4326')
         self.reply = None
         self.marker = None

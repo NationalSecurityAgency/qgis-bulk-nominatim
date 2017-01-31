@@ -47,8 +47,10 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             return
         
         self.numAddress = layer.featureCount()
+        self.totalAddress = self.numAddress
+        self.numErrors = 0
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum geocodes are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum geocodes to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
             
         layername = unicode(self.layerLineEdit.text())
@@ -100,6 +102,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             jd = json.loads(data)
             if 'display_name' in jd:
                 address = jd['display_name']
+        if not address:
+            self.numErrors += 1
         pt = self.geocodes[reply]
         feature = QgsFeature()
         feature.setGeometry(QgsGeometry.fromPoint(pt))
@@ -110,6 +114,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         if self.numAddress <= 0:
             self.pointLayer.updateExtents()
             QgsMapLayerRegistry.instance().addMapLayer(self.pointLayer)
+            self.resultsTextEdit.appendPlainText('Total Points Processed: '+str(self.totalAddress))
             self.resultsTextEdit.appendPlainText('Processing Complete!')
             
         reply.deleteLater()
@@ -132,6 +137,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         self.isfirst = True
         self.pointLayer = None
         self.numAddress = 0
+        self.numErrors = 0
         
         # First count and prepare all the addresses to geocode
         with open(filename, 'rb') as csvfile:
@@ -184,8 +190,10 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 self.numAddress += 1
         # Check to make sure we are not exceeding the maximum # of requests
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum addresses to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
+        self.totalAddress = self.numAddress
+        
         # Geocode all the addresses
         if self.numAddress:
             self.createPointLayer()
@@ -218,6 +226,9 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         lines = inputtext.splitlines()
         self.pointLayer = None
         self.numAddress = 0
+        self.numErrors = 0
+        self.totalAddress = 0;
+        
         # Create a list of all the Addresses. We want to get an accurate count
         for address in lines:
             # Get rid of beginning and end space
@@ -229,9 +240,12 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             addresses.append(address)
             
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum addresses are exceeded. Please reduce the number of addresses and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum addresses to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
             
+        # Save the total number of addresses because numAddress will be reduced to 0 as processed
+        self.totalAddress = self.numAddress
+        
         if self.numAddress:
             self.createPointLayer()
         for address in addresses:
@@ -264,11 +278,12 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 data = reply.readAll().data()
                 jd = json.loads(data)
                 if len(jd) == 0:
-                    raise ValueError('Could not find: ' + origaddr)
-                lat = self.fieldValidate(jd[0], 'lat')
-                lon = self.fieldValidate(jd[0], 'lon')
-                if not lat or not lon:
-                    raise ValueError('Could not find: ' + origaddr)
+                    raise ValueError(origaddr)
+                try:
+                    lat = jd[0]['lat']
+                    lon = jd[0]['lon']
+                except:
+                    raise ValueError(origaddr)
                 
                 feature = QgsFeature()
                 feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
@@ -308,14 +323,20 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                     feature.setAttributes([display_name])
                     self.provider.addFeatures([feature])
             else:
-                raise ValueError('Error occurred on address: ' + origaddr)
+                raise ValueError(origaddr)
         except Exception as e:
+            if self.numErrors == 0:
+                self.resultsTextEdit.appendPlainText('Address Errors')
+            self.numErrors += 1
             self.resultsTextEdit.appendPlainText(unicode(e))
                 
         self.numAddress -= 1
         if self.numAddress <= 0:
             self.pointLayer.updateExtents()
             QgsMapLayerRegistry.instance().addMapLayer(self.pointLayer)
+            self.resultsTextEdit.appendPlainText('Number of Addresses Processed: '+str(self.totalAddress))
+            self.resultsTextEdit.appendPlainText('Number of Successes: '+ str(self.totalAddress-self.numErrors))
+            self.resultsTextEdit.appendPlainText('Number of Errors: '+str(self.numErrors))
             self.resultsTextEdit.appendPlainText('Processing Complete!')
             
         reply.deleteLater()
