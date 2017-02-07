@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>890</width>
-    <height>597</height>
+    <width>640</width>
+    <height>527</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -34,7 +34,11 @@
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="fileLineEdit"/>
+          <widget class="QLineEdit" name="fileLineEdit">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item>
           <widget class="QPushButton" name="browsePushButton">
@@ -256,10 +260,39 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QLabel" name="label_12">
+       <property name="text">
+        <string>Maximum Results per Entry</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QSpinBox" name="maxResultsSpinBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimum">
+        <number>1</number>
+       </property>
+       <property name="maximum">
+        <number>10</number>
+       </property>
+       <property name="value">
+        <number>1</number>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_3">
+    <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="0,0,0">
+     <property name="spacing">
+      <number>26</number>
+     </property>
      <item>
       <widget class="QCheckBox" name="showLabelCheckBox">
        <property name="text">
@@ -273,6 +306,19 @@
         <string>Include Detailed Address Results</string>
        </property>
       </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
      </item>
     </layout>
    </item>

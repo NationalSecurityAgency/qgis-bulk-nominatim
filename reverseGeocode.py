@@ -30,8 +30,6 @@ class ReverseGeocodeTool(QgsMapTool):
         # Set up a polygon/line rubber band
         self.rubber = QgsRubberBand(self.canvas)
         self.rubber.setColor(QColor(255, 70, 0, 200))
-        # self.rubber.setIcon(QgsRubberBand.ICON_CIRCLE)
-        # self.rubber.setIconSize(15)
         self.rubber.setWidth(5)
         self.rubber.setBrushStyle(Qt.NoBrush)
         
@@ -86,7 +84,7 @@ class ReverseGeocodeTool(QgsMapTool):
         canvasCRS = self.canvas.mapSettings().destinationCrs()
         transform = QgsCoordinateTransform(canvasCRS, self.epsg4326)
         pt = transform.transform(pt.x(), pt.y())
-        url = '{}?format=json&lat={:f}&lon={:f}&zoom={:d}&addressdetails=0&polygon_text=1'.format(self.settings.reverseURL(), pt.y(), pt.x(),self.settings.levelOfDetail)
+        url = '{}?format=json&lat={:f}&lon={:f}&zoom={:d}&addressdetails=0&polygon_text=1'.format(self.settings.reverseURL(), pt.y(), pt.x(), self.settings.levelOfDetail)
         # print url
         qurl = QUrl(url)
         if self.reply is not None:

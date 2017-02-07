@@ -68,9 +68,9 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             label.setDataDefinedProperty(QgsPalLayerSettings.Size,True,True,'8','')
             label.writeToLayer(self.pointLayer)
         
-        canvasCRS = self.canvas.mapRenderer().destinationCrs()
+        layerCRS = layer.crs()
         epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
-        transform = QgsCoordinateTransform(canvasCRS, epsg4326)
+        transform = QgsCoordinateTransform(layerCRS, epsg4326)
 
         fields = layer.pendingFields()
         iter = layer.getFeatures()
@@ -84,6 +84,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             lat = str(pt.y())
             lon = str(pt.x())
             url = self.settings.reverseURL()+'?format=json&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=0'
+            # print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
@@ -138,6 +139,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         self.pointLayer = None
         self.numAddress = 0
         self.numErrors = 0
+        maxResults = self.maxResultsSpinBox.value()
+        showDetails = int( self.detailedAddressCheckBox.isChecked())
         
         # First count and prepare all the addresses to geocode
         with open(filename, 'rb') as csvfile:
@@ -181,10 +184,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                     address2 = re.sub('\s+', '+', address)
                     url = self.settings.searchURL() + '?q=' + address2
                     
-                if self.detailedAddressCheckBox.checkState():
-                    url += '&format=json&limit=1&polygon=0&addressdetails=1'
-                else:
-                    url += '&format=json&limit=1&polygon=0&addressdetails=0'
+                url += '&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
+                # print url
                 urls.append(url)
                 addresses.append(','.join(row))
                 self.numAddress += 1
@@ -248,13 +249,14 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         
         if self.numAddress:
             self.createPointLayer()
+        maxResults = self.maxResultsSpinBox.value()
+        showDetails = int( self.detailedAddressCheckBox.isChecked())
         for address in addresses:
             # Replace internal spaces with + signs
             address2 = re.sub('\s+', '+', address)
-            if self.detailedAddressCheckBox.checkState():
-                url = self.settings.searchURL()+'?q='+address2+'&format=json&limit=1&polygon=0&addressdetails=1'
-            else:
-                url = self.settings.searchURL()+'?q='+address2+'&format=json&limit=1&polygon=0&addressdetails=0'
+            url = '{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
+                self.settings.searchURL(), address2, maxResults, showDetails)
+            # print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
@@ -279,49 +281,50 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 jd = json.loads(data)
                 if len(jd) == 0:
                     raise ValueError(origaddr)
-                try:
-                    lat = jd[0]['lat']
-                    lon = jd[0]['lon']
-                except:
-                    raise ValueError(origaddr)
-                
-                feature = QgsFeature()
-                feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
-                display_name = self.fieldValidate(jd[0], 'display_name')
+                for addr in jd:
+                    try:
+                        lat = addr['lat']
+                        lon = addr['lon']
+                    except:
+                        raise ValueError(origaddr)
+                    
+                    feature = QgsFeature()
+                    feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
+                    display_name = self.fieldValidate(addr, 'display_name')
 
-                if self.detailedAddressCheckBox.checkState():
-                    osm_type = self.fieldValidate(jd[0], 'osm_type')
-                    osm_class = self.fieldValidate(jd[0], 'class')
-                    type = self.fieldValidate(jd[0], 'type')
-                    house_number = ''
-                    road = ''
-                    neighbourhood = ''
-                    locality = ''
-                    town = ''
-                    city = ''
-                    county = ''
-                    state = ''
-                    postcode = ''
-                    country = ''
-                    country_code = ''
-                    if 'address' in jd[0]:
-                        house_number = self.fieldValidate(jd[0]['address'], 'house_number')
-                        road = self.fieldValidate(jd[0]['address'], 'road')
-                        neighbourhood = self.fieldValidate(jd[0]['address'], 'neighbourhood')
-                        locality = self.fieldValidate(jd[0]['address'], 'locality')
-                        town = self.fieldValidate(jd[0]['address'], 'town')
-                        city = self.fieldValidate(jd[0]['address'], 'city')
-                        county = self.fieldValidate(jd[0]['address'], 'county')
-                        state = self.fieldValidate(jd[0]['address'], 'state')
-                        postcode = self.fieldValidate(jd[0]['address'], 'postcode')
-                        country = self.fieldValidate(jd[0]['address'], 'country')
-                        country_code = self.fieldValidate(jd[0]['address'], 'country_code')
-                    feature.setAttributes([osm_type, osm_class, type, origaddr, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
-                    self.provider.addFeatures([feature])
-                else:
-                    # Display only the resulting output address
-                    feature.setAttributes([display_name])
-                    self.provider.addFeatures([feature])
+                    if self.detailedAddressCheckBox.checkState():
+                        osm_type = self.fieldValidate(addr, 'osm_type')
+                        osm_class = self.fieldValidate(addr, 'class')
+                        type = self.fieldValidate(addr, 'type')
+                        house_number = ''
+                        road = ''
+                        neighbourhood = ''
+                        locality = ''
+                        town = ''
+                        city = ''
+                        county = ''
+                        state = ''
+                        postcode = ''
+                        country = ''
+                        country_code = ''
+                        if 'address' in addr:
+                            house_number = self.fieldValidate(addr['address'], 'house_number')
+                            road = self.fieldValidate(addr['address'], 'road')
+                            neighbourhood = self.fieldValidate(addr['address'], 'neighbourhood')
+                            locality = self.fieldValidate(addr['address'], 'locality')
+                            town = self.fieldValidate(addr['address'], 'town')
+                            city = self.fieldValidate(addr['address'], 'city')
+                            county = self.fieldValidate(addr['address'], 'county')
+                            state = self.fieldValidate(addr['address'], 'state')
+                            postcode = self.fieldValidate(addr['address'], 'postcode')
+                            country = self.fieldValidate(addr['address'], 'country')
+                            country_code = self.fieldValidate(addr['address'], 'country_code')
+                        feature.setAttributes([osm_type, osm_class, type, origaddr, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                        self.provider.addFeatures([feature])
+                    else:
+                        # Display only the resulting output address
+                        feature.setAttributes([display_name])
+                        self.provider.addFeatures([feature])
             else:
                 raise ValueError(origaddr)
         except Exception as e:
