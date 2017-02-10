@@ -21,7 +21,7 @@
      </property>
      <widget class="QWidget" name="csvTab">
       <attribute name="title">
-       <string>Geocode CSV File</string>
+       <string>Geocode Table</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
@@ -29,21 +29,17 @@
          <item>
           <widget class="QLabel" name="label_3">
            <property name="text">
-            <string>Input CSV File     </string>
+            <string>Input Address Layer</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="fileLineEdit">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="browsePushButton">
-           <property name="text">
-            <string>Browse...</string>
+          <widget class="QgsMapLayerComboBox" name="addressMapLayerComboBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
           </widget>
          </item>
@@ -54,12 +50,12 @@
          <item row="0" column="0">
           <widget class="QLabel" name="label_16">
            <property name="text">
-            <string>Full Address Field</string>
+            <string>Full Address Field   </string>
            </property>
           </widget>
          </item>
          <item row="0" column="1">
-          <widget class="QComboBox" name="fullAddressComboBox">
+          <widget class="QgsFieldComboBox" name="fullAddressFieldComboBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -94,18 +90,12 @@
              </property>
             </widget>
            </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="stateComboBox"/>
-           </item>
            <item row="1" column="0">
             <widget class="QLabel" name="label_7">
              <property name="text">
               <string>Country</string>
              </property>
             </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QComboBox" name="countryComboBox"/>
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_8">
@@ -114,8 +104,35 @@
              </property>
             </widget>
            </item>
+           <item row="0" column="1">
+            <widget class="QgsFieldComboBox" name="stateFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QgsFieldComboBox" name="countryFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
            <item row="2" column="1">
-            <widget class="QComboBox" name="postalCodeComboBox"/>
+            <widget class="QgsFieldComboBox" name="postalCodeFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>
@@ -134,18 +151,12 @@
              </property>
             </widget>
            </item>
-           <item row="0" column="1">
-            <widget class="QComboBox" name="numberComboBox"/>
-           </item>
            <item row="1" column="0">
             <widget class="QLabel" name="label_4">
              <property name="text">
               <string>Street Name</string>
              </property>
             </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QComboBox" name="streetNameComboBox"/>
            </item>
            <item row="2" column="0">
             <widget class="QLabel" name="label_5">
@@ -154,9 +165,6 @@
              </property>
             </widget>
            </item>
-           <item row="2" column="1">
-            <widget class="QComboBox" name="cityComboBox"/>
-           </item>
            <item row="3" column="0">
             <widget class="QLabel" name="label_6">
              <property name="text">
@@ -164,8 +172,45 @@
              </property>
             </widget>
            </item>
+           <item row="0" column="1">
+            <widget class="QgsFieldComboBox" name="numberFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QgsFieldComboBox" name="streetNameFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QgsFieldComboBox" name="cityFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
+           </item>
            <item row="3" column="1">
-            <widget class="QComboBox" name="countyComboBox"/>
+            <widget class="QgsFieldComboBox" name="countyFieldComboBox">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+            </widget>
            </item>
           </layout>
          </item>
@@ -361,6 +406,11 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>QgsFieldComboBox</class>
+   <extends>QComboBox</extends>
+   <header>qgis.gui</header>
+  </customwidget>
   <customwidget>
    <class>QgsMapLayerComboBox</class>
    <extends>QComboBox</extends>
