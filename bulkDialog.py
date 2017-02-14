@@ -38,6 +38,11 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.processFreeFormData()
         else:
             self.reverseGeocode()
+        
+    def showEvent(self, event):
+        '''The dialog is being shown. We need to initialize it.'''
+        super(BulkNominatimDialog, self).showEvent(event)
+        self.findFields()
     
     def reverseGeocode(self):
         layer = self.mMapLayerComboBox.currentLayer()
@@ -119,47 +124,17 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         reply.deleteLater()
 
     def findFields(self):
-        layer = self.addressMapLayerComboBox.currentLayer()
-        if not layer:
-            self.fullAddressFieldComboBox.setLayer(None)
-            self.numberFieldComboBox.setLayer(None)
-            self.streetNameFieldComboBox.setLayer(None)
-            self.cityFieldComboBox.setLayer(None)
-            self.countyFieldComboBox.setLayer(None)
-            self.stateFieldComboBox.setLayer(None)
-            self.countryFieldComboBox.setLayer(None)
-            self.postalCodeFieldComboBox.setLayer(None)
+        if not self.isVisible():
             return
-        self.fullAddressFieldComboBox.setLayer(layer)
-        self.numberFieldComboBox.setLayer(layer)
-        self.streetNameFieldComboBox.setLayer(layer)
-        self.cityFieldComboBox.setLayer(layer)
-        self.countyFieldComboBox.setLayer(layer)
-        self.stateFieldComboBox.setLayer(layer)
-        self.countryFieldComboBox.setLayer(layer)
-        self.postalCodeFieldComboBox.setLayer(layer)
-        
+        layer = self.addressMapLayerComboBox.currentLayer()
+        header = [u"--- Select Column ---"]
         fields = layer.pendingFields()
-
         for field in fields.toList():
             # force it to be lower case - makes matching easier
             name = field.name()
-            item = name.lower()
-            if bool(re.search('num', item)):
-                self.numberFieldComboBox.setField(name)
-            elif bool(re.search('name', item)) or item.startswith('road'):
-                self.streetNameFieldComboBox.setField(name)
-            elif item.startswith('city'):
-                self.cityFieldComboBox.setField(name)
-            elif item.startswith('county'):
-                self.countyFieldComboBox.setField(name)
-            elif item.startswith('state'):
-                self.stateFieldComboBox.setField(name)
-            elif item.startswith('country'):
-                self.countryFieldComboBox.setField(name)
-            elif item.startswith('postal'):
-                self.postalCodeFieldComboBox.setField(name)
-        
+            header.append(name)
+        self.configureLayerFields(header)
+                
         
     def processAddressTable(self):
         layer = self.addressMapLayerComboBox.currentLayer()
@@ -182,44 +157,46 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         self.pointLayer = None
         self.createPointLayer()
 
-        iter = layer.getFeatures()
-        full_address = self.fullAddressFieldComboBox.currentField()
-        street_num = self.numberFieldComboBox.currentField()
-        street_name = self.streetNameFieldComboBox.currentField()
-        city = self.cityFieldComboBox.currentField()
-        county = self.countyFieldComboBox.currentField()
-        state = self.stateFieldComboBox.currentField()
-        country = self.countryFieldComboBox.currentField()
-        postal = self.postalCodeFieldComboBox.currentField()
+        iter = layer.getFeatures(QgsFeatureRequest().setFlags(QgsFeatureRequest.NoGeometry))
+        full_address = self.fullAddressComboBox.currentIndex() - 1
+        street_num = self.numberComboBox.currentIndex() - 1
+        street_name = self.streetNameComboBox.currentIndex() - 1
+        city = self.cityComboBox.currentIndex() - 1
+        county = self.countyComboBox.currentIndex() - 1
+        state = self.stateComboBox.currentIndex() - 1
+        country = self.countryComboBox.currentIndex() - 1
+        postal = self.postalCodeComboBox.currentIndex() - 1
         
         for feature in iter:
             self.isfirst = True
-            if full_address:
-                address = feature.attribute(full_address).strip()
-                address = re.sub(u'\s+', u'+', address)
-                url = self.settings.searchURL() + u'?q=' + address
+            if full_address >= 0:
+                address = feature[full_address].strip()
+                address2 = re.sub(u'\s+', u'+', address)
+                url = self.settings.searchURL() + u'?q=' + address2
             else:
+                address = ','.join(feature.attributes())
                 url = self.settings.searchURL() + u'?'
-                if street_name:
+                if street_name >= 0:
                     num = u''
                     name = u''
-                    if street_num:
-                        num = (u''+feature.attribute(street_num)).strip()
-                    name = (u''+feature.attribute(street_name)).strip()
+                    if street_num  >= 0 and feature[street_num]:
+                        num = (u''+feature[street_num]).strip()
+                    if feature[street_name]:
+                        name = (u''+feature[street_name]).strip()
                     street = num+u' '+name
                     street = street.strip()
                     if street:
                         url += self.formatParam(u'street', street)
-                if city:
-                    url += self.formatParam(u'city', feature.attribute(city))
-                if county:
-                    url += self.formatParam(u'county', feature.attribute(county))
-                if state:
-                    url += self.formatParam(u'state', feature.attribute(state))
-                if country:
-                    url += self.formatParam(u'country', feature.attribute(country))
-                if postal:
-                    url += self.formatParam(u'postalcode', feature.attribute(postal))
+                if city >= 0:
+                    url += self.formatParam(u'city', feature[city])
+                if county >= 0:
+                    url += self.formatParam(u'county', feature[county])
+                if state >= 0:
+                    url += self.formatParam(u'state', feature[state])
+                if country >= 0:
+                    url += self.formatParam(u'country', feature[country])
+                if postal >= 0:
+                    url += self.formatParam(u'postalcode', feature[postal])
                     
             url += u'&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
             # print url
@@ -228,12 +205,15 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             request.setRawHeader("User-Agent",
                     "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
             reply = QgsNetworkAccessManager.instance().get(request)
-            self.geocodes[reply] = url
+            self.geocodes[reply] = address
             reply.finished.connect(self.replyFinished)
         
     def formatParam(self, tag, value):
-        value = value.strip()
-        value = re.sub(u'\s+', u'%20', value)
+        if value:
+            value = value.strip()
+            value = re.sub(u'\s+', u'%20', value)
+        else:
+            value = u''
         if self.isfirst:
             url = tag + u'=' + value
             self.isfirst = False
@@ -402,3 +382,60 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             label.setDataDefinedProperty(QgsPalLayerSettings.Size,True,True,'8','')
             label.writeToLayer(self.pointLayer)
         
+    def configureLayerFields(self, header):
+        self.clearLayerFields()
+        self.fullAddressComboBox.addItems(header)
+        self.numberComboBox.addItems(header)
+        self.streetNameComboBox.addItems(header)
+        self.cityComboBox.addItems(header)
+        self.countyComboBox.addItems(header)
+        self.stateComboBox.addItems(header)
+        self.countryComboBox.addItems(header)
+        self.postalCodeComboBox.addItems(header)
+        
+        street_num_col = street_name_col = city_col = county_col = state_col = country_col = postal_col = -1
+        for x, item in enumerate(header):
+            # Skip the header line
+            if x == 0:
+                continue
+            # force it to be lower case - makes matching easier
+            item = item.lower()
+            if bool(re.search('num', item)):
+                street_num_col = x
+            elif bool(re.search('name', item)) or item.startswith('road'):
+                street_name_col = x
+            elif item.startswith('city'):
+                city_col = x
+            elif item.startswith('county'):
+                county_col = x
+            elif item.startswith('state'):
+                state_col = x
+            elif item.startswith('country'):
+                country_col = x
+            elif item.startswith('postal'):
+                postal_col = x
+        if street_num_col != -1:
+            self.numberComboBox.setCurrentIndex(street_num_col)
+        if street_name_col != -1:
+            self.streetNameComboBox.setCurrentIndex(street_name_col)
+        if city_col != -1:
+            self.cityComboBox.setCurrentIndex(city_col)
+        if county_col != -1:
+            self.countyComboBox.setCurrentIndex(county_col)
+        if state_col != -1:
+            self.stateComboBox.setCurrentIndex(state_col)
+        if country_col != -1:
+            self.countryComboBox.setCurrentIndex(country_col)
+        if postal_col != -1:
+            self.postalCodeComboBox.setCurrentIndex(postal_col)
+        self.fullAddressComboBox.setCurrentIndex(0)
+
+    def clearLayerFields(self):
+        self.fullAddressComboBox.clear()
+        self.numberComboBox.clear()
+        self.streetNameComboBox.clear()
+        self.cityComboBox.clear()
+        self.countyComboBox.clear()
+        self.stateComboBox.clear()
+        self.countryComboBox.clear()
+        self.postalCodeComboBox.clear()
