@@ -127,13 +127,16 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         if not self.isVisible():
             return
         layer = self.addressMapLayerComboBox.currentLayer()
-        header = [u"--- Select Column ---"]
-        fields = layer.pendingFields()
-        for field in fields.toList():
-            # force it to be lower case - makes matching easier
-            name = field.name()
-            header.append(name)
-        self.configureLayerFields(header)
+        if not layer:
+            self.clearLayerFields()
+        else:
+            header = [u"--- Select Column ---"]
+            fields = layer.pendingFields()
+            for field in fields.toList():
+                # force it to be lower case - makes matching easier
+                name = field.name()
+                header.append(name)
+            self.configureLayerFields(header)
                 
         
     def processAddressTable(self):
@@ -174,15 +177,15 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                 address2 = re.sub(u'\s+', u'+', address)
                 url = self.settings.searchURL() + u'?q=' + address2
             else:
-                address = ','.join(feature.attributes())
+                address = u','.join([unicode(x) if x else u'' for x in feature.attributes()])
                 url = self.settings.searchURL() + u'?'
                 if street_name >= 0:
                     num = u''
                     name = u''
                     if street_num  >= 0 and feature[street_num]:
-                        num = (u''+feature[street_num]).strip()
+                        num = (u'{}'.format(feature[street_num])).strip()
                     if feature[street_name]:
-                        name = (u''+feature[street_name]).strip()
+                        name = (u'{}'.format(feature[street_name])).strip()
                     street = num+u' '+name
                     street = street.strip()
                     if street:
@@ -210,15 +213,15 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         
     def formatParam(self, tag, value):
         if value:
-            value = value.strip()
+            value = (u'{}'.format(value)).strip()
             value = re.sub(u'\s+', u'%20', value)
         else:
             value = u''
         if self.isfirst:
-            url = tag + u'=' + value
+            url = u'{}={}'.format(tag,value)
             self.isfirst = False
         else:
-            url = u'&'+tag+u'='+value
+            url = u'&{}={}'.format(tag,value)
         return url
     
     def processFreeFormData(self):
