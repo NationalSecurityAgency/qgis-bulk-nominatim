@@ -2,14 +2,13 @@ import os
 import re
 import json
 
-from qgis.core import *
-from qgis.gui import *
-from qgis.utils import *
+from qgis.core import QgsVectorLayer, QgsField, QgsPalLayerSettings, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsNetworkAccessManager, QgsFeature, QgsGeometry, QgsPoint, QgsMapLayerRegistry, QgsFeatureRequest
+from qgis.gui import QgsMessageBar, QgsMapLayerProxyModel
 
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-from PyQt4.QtNetwork import *
+from PyQt4.QtCore import QVariant, QUrl, pyqtSlot
+from PyQt4.QtNetwork import QNetworkRequest, QNetworkReply
 
+from PyQt4.QtGui import QDialog
 from PyQt4 import uic
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(

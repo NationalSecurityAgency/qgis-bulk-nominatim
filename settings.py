@@ -1,11 +1,8 @@
 import os
 
 from PyQt4 import uic
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
-
-from qgis.core import *
-from qgis.gui import *
+from PyQt4.QtCore import QSettings
+from PyQt4.QtGui import QDialog, QDialogButtonBox
 
 NOMURL = u'https://nominatim.openstreetmap.org'
 

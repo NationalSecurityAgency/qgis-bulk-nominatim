@@ -3,11 +3,11 @@ import re
 import json
 
 from PyQt4 import uic
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from qgis.core import *
-from qgis.gui import *
-from PyQt4.QtNetwork import *
+from PyQt4.QtGui import QDockWidget, QColor
+from PyQt4.QtCore import Qt, QUrl, pyqtSlot, pyqtSignal
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsNetworkAccessManager
+from qgis.gui import QgsMapTool, QgsRubberBand, QgsVertexMarker
+from PyQt4.QtNetwork import QNetworkRequest, QNetworkReply
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'reverseGeocode.ui'))
