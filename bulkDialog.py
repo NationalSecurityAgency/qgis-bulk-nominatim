@@ -91,7 +91,9 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
-                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
+                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader("Connection", "keep-alive")
+            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = pt
             reply.finished.connect(self.reverseGeoFinished)
@@ -206,7 +208,9 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
-                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
+                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader("Connection", "keep-alive")
+            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = address
             reply.finished.connect(self.replyFinished)
@@ -266,7 +270,9 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
             request.setRawHeader("User-Agent",
-                "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
+                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader("Connection", "keep-alive")
+            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = address
             reply.finished.connect(self.replyFinished)

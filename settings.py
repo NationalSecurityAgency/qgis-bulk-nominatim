@@ -7,7 +7,7 @@ from PyQt4.QtGui import *
 from qgis.core import *
 from qgis.gui import *
 
-NOMURL = u'http://nominatim.openstreetmap.org'
+NOMURL = u'https://nominatim.openstreetmap.org'
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'settings.ui'))

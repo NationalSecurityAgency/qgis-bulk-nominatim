@@ -93,7 +93,9 @@ class ReverseGeocodeTool(QgsMapTool):
             self.reply = None
         request = QNetworkRequest(qurl)
         request.setRawHeader("User-Agent",
-                "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:45.0) Gecko/20100101 Firefox/45.0")
+                "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+        request.setRawHeader("Connection", "keep-alive")
+        request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
         self.reply = QgsNetworkAccessManager.instance().get(request)
         self.reply.finished.connect(self.replyFinished)
         if not self.reverseGeoCodeDialog.isVisible():
@@ -108,25 +110,28 @@ class ReverseGeocodeTool(QgsMapTool):
         self.clearSelection()
         if error == QNetworkReply.NoError:
             data = self.reply.readAll().data()
-            jd = json.loads(data)
             try:
-                display_name = jd['display_name']
-                self.setText(display_name)
-            except KeyError:
-                self.setText("[Could not find address]")
-            try:
-                wkt = jd['geotext']
-                geometry = QgsGeometry.fromWkt(wkt)
-                geometry = self.transform_geom(geometry)
-                self.rubber.addGeometry(geometry, None)
-                self.rubber.show()
-            except KeyError:
+                jd = json.loads(data)
                 try:
-                    lon = float(jd['lon'])
-                    lat = float(jd['lat'])
-                    self.addMarker(lat, lon)
-                except:
-                    pass
+                    display_name = jd['display_name']
+                    self.setText(display_name)
+                except KeyError:
+                    self.setText("[Could not find address]")
+                try:
+                    wkt = jd['geotext']
+                    geometry = QgsGeometry.fromWkt(wkt)
+                    geometry = self.transform_geom(geometry)
+                    self.rubber.addGeometry(geometry, None)
+                    self.rubber.show()
+                except KeyError:
+                    try:
+                        lon = float(jd['lon'])
+                        lat = float(jd['lat'])
+                        self.addMarker(lat, lon)
+                    except:
+                        pass
+            except:
+                self.setText("Error: "+data)
 
         else:
             self.setText("[Address error]")
