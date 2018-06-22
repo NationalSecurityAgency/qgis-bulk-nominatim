@@ -1,10 +1,10 @@
 import os
 
-from PyQt4 import uic
-from PyQt4.QtCore import QSettings
-from PyQt4.QtGui import QDialog, QDialogButtonBox
+from qgis.PyQt import uic
+from qgis.PyQt.QtCore import QSettings
+from qgis.PyQt.QtWidgets import QDialog, QDialogButtonBox
 
-NOMURL = u'https://nominatim.openstreetmap.org'
+NOMURL = 'https://nominatim.openstreetmap.org'
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'settings.ui'))
@@ -43,7 +43,7 @@ class SettingsWidget(QDialog, FORM_CLASS):
         self.detailSpinBox.setValue(18)
 
     def searchURL(self):
-        return self.nominatimURL + u'/search'
+        return self.nominatimURL + '/search'
         
     def reverseURL(self):
-        return self.nominatimURL + u'/reverse'
+        return self.nominatimURL + '/reverse'

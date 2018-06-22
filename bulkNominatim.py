@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
-from PyQt4.QtCore import QUrl
-from PyQt4.QtGui import QIcon, QAction
+from qgis.PyQt.QtCore import QUrl
+from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtWidgets import QAction
 
 import os.path
 import webbrowser
-from bulkDialog import BulkNominatimDialog
-from reverseGeocode import ReverseGeocodeTool
-from settings import SettingsWidget
+from .bulkDialog import BulkNominatimDialog
+from .reverseGeocode import ReverseGeocodeTool
+from .settings import SettingsWidget
 
-class BulkNominatim:
+class BulkNominatim(object):
     def __init__(self, iface):
         self.iface = iface
         self.canvas = iface.mapCanvas()

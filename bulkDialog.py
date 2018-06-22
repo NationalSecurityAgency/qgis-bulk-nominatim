@@ -2,14 +2,16 @@ import os
 import re
 import json
 
-from qgis.core import QgsVectorLayer, QgsField, QgsPalLayerSettings, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsNetworkAccessManager, QgsFeature, QgsGeometry, QgsPoint, QgsMapLayerRegistry, QgsFeatureRequest
-from qgis.gui import QgsMessageBar, QgsMapLayerProxyModel
+from qgis.core import (QgsVectorLayer, QgsField,
+    QgsPalLayerSettings, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsNetworkAccessManager,
+    QgsFeature, QgsGeometry, QgsPointXY, QgsFeatureRequest, QgsProject, QgsMapLayerProxyModel)
+from qgis.gui import QgsMessageBar
 
-from PyQt4.QtCore import QVariant, QUrl, pyqtSlot
-from PyQt4.QtNetwork import QNetworkRequest, QNetworkReply
+from qgis.PyQt.QtCore import QVariant, QUrl, pyqtSlot
+from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 
-from PyQt4.QtGui import QDialog
-from PyQt4 import uic
+from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt import uic
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'bulkNominatim.ui'))
@@ -73,7 +75,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         
         layerCRS = layer.crs()
         epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
-        transform = QgsCoordinateTransform(layerCRS, epsg4326)
+        transform = QgsCoordinateTransform(layerCRS, epsg4326, QgsProject.instance())
 
         iter = layer.getFeatures()
         self.geocodes = {}
@@ -85,14 +87,14 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             pt = transform.transform(pt.x(), pt.y())
             lat = str(pt.y())
             lon = str(pt.x())
-            url = self.settings.reverseURL()+u'?format=json&lat='+lat+u'&lon='+lon+u'&zoom=18&addressdetails=0'
+            url = self.settings.reverseURL()+'?format=json&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=0'
             # print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
-            request.setRawHeader("User-Agent",
-                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
-            request.setRawHeader("Connection", "keep-alive")
-            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            request.setRawHeader(b"User-Agent",
+                    b"Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader(b"Connection", b"keep-alive")
+            request.setRawHeader(b"Accept", b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = pt
             reply.finished.connect(self.reverseGeoFinished)
@@ -111,14 +113,14 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.numErrors += 1
         pt = self.geocodes[reply]
         feature = QgsFeature()
-        feature.setGeometry(QgsGeometry.fromPoint(pt))
+        feature.setGeometry(QgsGeometry.fromPointXY(pt))
         feature.setAttributes([address])
         self.provider.addFeatures([feature])
         
         self.numAddress -= 1
         if self.numAddress <= 0:
             self.pointLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.pointLayer)
+            QgsProject.instance().addMapLayer(self.pointLayer)
             self.resultsTextEdit.appendPlainText('Total Points Processed: '+str(self.totalAddress))
             self.resultsTextEdit.appendPlainText('Processing Complete!')
             
@@ -132,7 +134,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.clearLayerFields()
         else:
             header = [u"--- Select Column ---"]
-            fields = layer.pendingFields()
+            fields = layer.fields()
             for field in fields.toList():
                 # force it to be lower case - makes matching easier
                 name = field.name()
@@ -175,56 +177,56 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.isfirst = True
             if full_address >= 0:
                 address = feature[full_address].strip()
-                address2 = re.sub(u'\s+', u'+', address)
-                url = self.settings.searchURL() + u'?q=' + address2
+                address2 = re.sub('\s+', '+', address)
+                url = self.settings.searchURL() + '?q=' + address2
             else:
-                address = u','.join([unicode(x) if x else u'' for x in feature.attributes()])
-                url = self.settings.searchURL() + u'?'
+                address = ','.join([str(x) if x else '' for x in feature.attributes()])
+                url = self.settings.searchURL() + '?'
                 if street_name >= 0:
-                    num = u''
-                    name = u''
+                    num = ''
+                    name = ''
                     if street_num  >= 0 and feature[street_num]:
-                        num = (u'{}'.format(feature[street_num])).strip()
+                        num = ('{}'.format(feature[street_num])).strip()
                     if feature[street_name]:
-                        name = (u'{}'.format(feature[street_name])).strip()
-                    street = num+u' '+name
+                        name = ('{}'.format(feature[street_name])).strip()
+                    street = num+' '+name
                     street = street.strip()
                     if street:
-                        url += self.formatParam(u'street', street)
+                        url += self.formatParam('street', street)
                 if city >= 0:
-                    url += self.formatParam(u'city', feature[city])
+                    url += self.formatParam('city', feature[city])
                 if county >= 0:
-                    url += self.formatParam(u'county', feature[county])
+                    url += self.formatParam('county', feature[county])
                 if state >= 0:
-                    url += self.formatParam(u'state', feature[state])
+                    url += self.formatParam('state', feature[state])
                 if country >= 0:
-                    url += self.formatParam(u'country', feature[country])
+                    url += self.formatParam('country', feature[country])
                 if postal >= 0:
-                    url += self.formatParam(u'postalcode', feature[postal])
+                    url += self.formatParam('postalcode', feature[postal])
                     
-            url += u'&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
+            url += '&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
             # print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
-            request.setRawHeader("User-Agent",
-                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
-            request.setRawHeader("Connection", "keep-alive")
-            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            request.setRawHeader(b"User-Agent",
+                    b"Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader(b"Connection", b"keep-alive")
+            request.setRawHeader(b"Accept", b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = address
             reply.finished.connect(self.replyFinished)
         
     def formatParam(self, tag, value):
         if value:
-            value = (u'{}'.format(value)).strip()
-            value = re.sub(u'\s+', u'%20', value)
+            value = ('{}'.format(value)).strip()
+            value = re.sub('\s+', '%20', value)
         else:
-            value = u''
+            value = ''
         if self.isfirst:
-            url = u'{}={}'.format(tag,value)
+            url = '{}={}'.format(tag,value)
             self.isfirst = False
         else:
-            url = u'&{}={}'.format(tag,value)
+            url = '&{}={}'.format(tag,value)
         return url
     
     def processFreeFormData(self):
@@ -232,7 +234,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         addresses = []
         
         # Get the text for the Address Query Box an dgo through line by line to geocode it
-        inputtext = unicode(self.addressTextEdit.toPlainText())
+        inputtext = str(self.addressTextEdit.toPlainText())
         lines = inputtext.splitlines()
         self.pointLayer = None
         self.numAddress = 0
@@ -263,23 +265,23 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         for address in addresses:
             # Replace internal spaces with + signs
             address2 = re.sub('\s+', '+', address)
-            url = u'{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
+            url = '{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
                 self.settings.searchURL(), address2, maxResults, showDetails)
             # print url
             qurl = QUrl(url)
             request = QNetworkRequest(qurl)
-            request.setRawHeader("User-Agent",
-                    "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
-            request.setRawHeader("Connection", "keep-alive")
-            request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+            request.setRawHeader(b"User-Agent",
+                    b"Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+            request.setRawHeader(b"Connection", b"keep-alive")
+            request.setRawHeader(b"Accept", b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             reply = QgsNetworkAccessManager.instance().get(request)
             self.geocodes[reply] = address
             reply.finished.connect(self.replyFinished)
 
     def fieldValidate(self, data, name):
         if name in data:
-            return unicode(data[name])
-        return u''
+            return str(data[name])
+        return ''
         
     @pyqtSlot()
     def replyFinished(self):
@@ -300,7 +302,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                         raise ValueError(origaddr)
                     
                     feature = QgsFeature()
-                    feature.setGeometry(QgsGeometry.fromPoint(QgsPoint(float(lon), float(lat))))
+                    feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(lon), float(lat))))
                     display_name = self.fieldValidate(addr, 'display_name')
 
                     if self.detailedAddressCheckBox.checkState():
@@ -342,12 +344,12 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             if self.numErrors == 0:
                 self.resultsTextEdit.appendPlainText('Address Errors')
             self.numErrors += 1
-            self.resultsTextEdit.appendPlainText(unicode(e))
+            self.resultsTextEdit.appendPlainText(str(e))
                 
         self.numAddress -= 1
         if self.numAddress <= 0:
             self.pointLayer.updateExtents()
-            QgsMapLayerRegistry.instance().addMapLayer(self.pointLayer)
+            QgsProject.instance().addMapLayer(self.pointLayer)
             self.resultsTextEdit.appendPlainText('Number of Addresses Processed: '+str(self.totalAddress))
             self.resultsTextEdit.appendPlainText('Number of Successes: '+ str(self.totalAddress-self.numErrors))
             self.resultsTextEdit.appendPlainText('Number of Errors: '+str(self.numErrors))

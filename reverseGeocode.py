@@ -2,12 +2,13 @@ import os
 import re
 import json
 
-from PyQt4 import uic
-from PyQt4.QtGui import QDockWidget, QColor
-from PyQt4.QtCore import Qt, QUrl, pyqtSlot, pyqtSignal
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsNetworkAccessManager
+from qgis.PyQt import uic
+from qgis.PyQt.QtWidgets import QDockWidget
+from qgis.PyQt.QtGui import QColor
+from qgis.PyQt.QtCore import Qt, QUrl, pyqtSlot, pyqtSignal, QByteArray
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsNetworkAccessManager, QgsProject
 from qgis.gui import QgsMapTool, QgsRubberBand, QgsVertexMarker
-from PyQt4.QtNetwork import QNetworkRequest, QNetworkReply
+from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'reverseGeocode.ui'))
@@ -50,7 +51,7 @@ class ReverseGeocodeTool(QgsMapTool):
         if self.marker:
             self.removeMarker()
         canvasCrs = self.canvas.mapSettings().destinationCrs()
-        transform = QgsCoordinateTransform(self.epsg4326, canvasCrs)
+        transform = QgsCoordinateTransform(self.epsg4326, canvasCrs, QgsProject.instance())
         center = transform.transform(lon, lat)
         self.marker = QgsVertexMarker(self.canvas)
         self.marker.setCenter(center)
@@ -72,7 +73,7 @@ class ReverseGeocodeTool(QgsMapTool):
     def transform_geom(self, geometry):
         canvasCrs = self.canvas.mapSettings().destinationCrs()
         geom = QgsGeometry(geometry)
-        geom.transform(QgsCoordinateTransform(self.epsg4326, canvasCrs))
+        geom.transform(QgsCoordinateTransform(self.epsg4326, canvasCrs, QgsProject.instance()))
         return geom
 
     def show(self):
@@ -82,9 +83,9 @@ class ReverseGeocodeTool(QgsMapTool):
         # Make sure the point is transfored to 4326
         pt = self.toMapCoordinates(event.pos())
         canvasCRS = self.canvas.mapSettings().destinationCrs()
-        transform = QgsCoordinateTransform(canvasCRS, self.epsg4326)
+        transform = QgsCoordinateTransform(canvasCRS, self.epsg4326, QgsProject.instance())
         pt = transform.transform(pt.x(), pt.y())
-        url = u'{}?format=json&lat={:f}&lon={:f}&zoom={:d}&addressdetails=0&polygon_text=1'.format(self.settings.reverseURL(), pt.y(), pt.x(), self.settings.levelOfDetail)
+        url = '{}?format=json&lat={:f}&lon={:f}&zoom={:d}&addressdetails=0&polygon_text=1'.format(self.settings.reverseURL(), pt.y(), pt.x(), self.settings.levelOfDetail)
         # print url
         qurl = QUrl(url)
         if self.reply is not None:
@@ -92,10 +93,10 @@ class ReverseGeocodeTool(QgsMapTool):
             self.reply.abort()
             self.reply = None
         request = QNetworkRequest(qurl)
-        request.setRawHeader("User-Agent",
-                "Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
-        request.setRawHeader("Connection", "keep-alive")
-        request.setRawHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+        request.setRawHeader(b"User-Agent",
+                b"Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
+        request.setRawHeader(b"Connection", b"keep-alive")
+        request.setRawHeader(b"Accept", b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
         self.reply = QgsNetworkAccessManager.instance().get(request)
         self.reply.finished.connect(self.replyFinished)
         if not self.reverseGeoCodeDialog.isVisible():
