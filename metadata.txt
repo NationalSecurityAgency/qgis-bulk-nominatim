@@ -1,8 +1,8 @@
 [general]
 name=Bulk Nominatim GeoCoding
-qgisMinimumVersion=3.0
+qgisMinimumVersion=3.4
 description=Bulk nominatim geocoding
-version=3.0.0
+version=3.0.1
 author=C Hamilton
 email=adenaculture@gmail.com
 about=Bulk nominatim geocoding
