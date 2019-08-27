@@ -2,12 +2,13 @@ import os
 import re
 import json
 
-from qgis.core import (QgsVectorLayer, QgsField,
+from qgis.core import (QgsVectorLayer, QgsField, QgsNetworkContentFetcher,
     QgsPalLayerSettings, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsNetworkAccessManager,
-    QgsFeature, QgsGeometry, QgsPointXY, QgsFeatureRequest, QgsProject, QgsMapLayerProxyModel)
+    QgsFeature, QgsGeometry, QgsPointXY, QgsFeatureRequest, QgsProject, QgsMapLayerProxyModel,
+    QgsVectorLayerSimpleLabeling)
 from qgis.gui import QgsMessageBar
 
-from qgis.PyQt.QtCore import QVariant, QUrl, pyqtSlot
+from qgis.PyQt.QtCore import QVariant, QUrl, pyqtSlot, QEventLoop, QTextCodec
 from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 
 from qgis.PyQt.QtWidgets import QDialog
@@ -230,7 +231,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         return url
     
     def processFreeFormData(self):
-        self.geocodes = {}
         addresses = []
         
         # Get the text for the Address Query Box an dgo through line by line to geocode it
@@ -239,7 +239,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         self.pointLayer = None
         self.numAddress = 0
         self.numErrors = 0
-        self.totalAddress = 0;
         
         # Create a list of all the Addresses. We want to get an accurate count
         for address in lines:
@@ -254,29 +253,86 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         if self.numAddress > self.settings.maxAddress:
             self.iface.messageBar().pushMessage("", "Maximum addresses to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
             return
-            
-        # Save the total number of addresses because numAddress will be reduced to 0 as processed
-        self.totalAddress = self.numAddress
-        
+
         if self.numAddress:
             self.createPointLayer()
         maxResults = self.maxResultsSpinBox.value()
         showDetails = int( self.detailedAddressCheckBox.isChecked())
+        
+        fetcher = QgsNetworkContentFetcher()
+        evloop = QEventLoop()
+        codec = QTextCodec.codecForName('UTF-8')
+        fetcher.finished.connect(evloop.quit)
+        
         for address in addresses:
             # Replace internal spaces with + signs
             address2 = re.sub('\s+', '+', address)
             url = '{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
                 self.settings.searchURL(), address2, maxResults, showDetails)
-            # print url
-            qurl = QUrl(url)
-            request = QNetworkRequest(qurl)
-            request.setRawHeader(b"User-Agent",
-                    b"Mozilla/5.0 (Windows NT 6.1: WOW64; rv:52.0) Gecko/20100101 Firefox/52.0")
-            request.setRawHeader(b"Connection", b"keep-alive")
-            request.setRawHeader(b"Accept", b"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-            reply = QgsNetworkAccessManager.instance().get(request)
-            self.geocodes[reply] = address
-            reply.finished.connect(self.replyFinished)
+            fetcher.fetchContent(QUrl(url))
+            evloop.exec_(QEventLoop.ExcludeUserInputEvents)
+            jsondata = fetcher.contentAsString()
+            try:
+                jd = json.loads(jsondata)
+                if len(jd) == 0:
+                    raise ValueError(address)
+                for addr in jd:
+                    try:
+                        lat = addr['lat']
+                        lon = addr['lon']
+                    except:
+                        raise ValueError(address)
+                    
+                    feature = QgsFeature()
+                    feature.setGeometry(QgsGeometry.fromPointXY(QgsPointXY(float(lon), float(lat))))
+                    display_name = self.fieldValidate(addr, 'display_name')
+
+                    if self.detailedAddressCheckBox.checkState():
+                        osm_type = self.fieldValidate(addr, 'osm_type')
+                        osm_class = self.fieldValidate(addr, 'class')
+                        type = self.fieldValidate(addr, 'type')
+                        house_number = ''
+                        road = ''
+                        neighbourhood = ''
+                        locality = ''
+                        town = ''
+                        city = ''
+                        county = ''
+                        state = ''
+                        postcode = ''
+                        country = ''
+                        country_code = ''
+                        if 'address' in addr:
+                            house_number = self.fieldValidate(addr['address'], 'house_number')
+                            road = self.fieldValidate(addr['address'], 'road')
+                            neighbourhood = self.fieldValidate(addr['address'], 'neighbourhood')
+                            locality = self.fieldValidate(addr['address'], 'locality')
+                            town = self.fieldValidate(addr['address'], 'town')
+                            city = self.fieldValidate(addr['address'], 'city')
+                            county = self.fieldValidate(addr['address'], 'county')
+                            state = self.fieldValidate(addr['address'], 'state')
+                            postcode = self.fieldValidate(addr['address'], 'postcode')
+                            country = self.fieldValidate(addr['address'], 'country')
+                            country_code = self.fieldValidate(addr['address'], 'country_code')
+                        feature.setAttributes([osm_type, osm_class, type, address, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                        self.provider.addFeatures([feature])
+                    else:
+                        # Display only the resulting output address
+                        feature.setAttributes([display_name])
+                        self.provider.addFeatures([feature])
+            except Exception as e:
+                if self.numErrors == 0:
+                    self.resultsTextEdit.appendPlainText('Address Errors')
+                self.numErrors += 1
+                self.resultsTextEdit.appendPlainText(str(e))
+
+        if self.numAddress > 0:
+            self.pointLayer.updateExtents()
+            QgsProject.instance().addMapLayer(self.pointLayer)
+            self.resultsTextEdit.appendPlainText('Number of Addresses Processed: '+str(self.numAddress))
+            self.resultsTextEdit.appendPlainText('Number of Successes: '+ str(self.numAddress-self.numErrors))
+            self.resultsTextEdit.appendPlainText('Number of Errors: '+str(self.numErrors))
+            self.resultsTextEdit.appendPlainText('Processing Complete!')
 
     def fieldValidate(self, data, name):
         if name in data:
@@ -385,12 +441,11 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         if self.showLabelCheckBox.checkState():
             # Display labels
             label = QgsPalLayerSettings()
-            label.readFromLayer(self.pointLayer)
-            label.enabled = True
             label.fieldName = 'display_name'
             label.placement= QgsPalLayerSettings.AroundPoint
-            label.setDataDefinedProperty(QgsPalLayerSettings.Size,True,True,'8','')
-            label.writeToLayer(self.pointLayer)
+            labeling = QgsVectorLayerSimpleLabeling(label)
+            self.pointLayer.setLabeling(labeling)
+            self.pointLayer.setLabelsEnabled(True)
         
     def configureLayerFields(self, header):
         self.clearLayerFields()
