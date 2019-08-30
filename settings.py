@@ -43,7 +43,7 @@ class SettingsWidget(QDialog, FORM_CLASS):
         self.detailSpinBox.setValue(18)
 
     def searchURL(self):
-        return self.nominatimURL + '/search'
+        return self.nominatimURL + '/search.php'
         
     def reverseURL(self):
-        return self.nominatimURL + '/reverse'
+        return self.nominatimURL + '/reverse.php'

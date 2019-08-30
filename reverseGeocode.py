@@ -25,7 +25,6 @@ class ReverseGeocodeTool(QgsMapTool):
         self.iface.addDockWidget(Qt.TopDockWidgetArea, self.reverseGeoCodeDialog)
         self.reverseGeoCodeDialog.hide()
         self.epsg4326 = QgsCoordinateReferenceSystem('EPSG:4326')
-        self.fetcher = None
         self.marker = None
         
         # Set up a polygon/line rubber band
@@ -37,11 +36,6 @@ class ReverseGeocodeTool(QgsMapTool):
     def activate(self):
         '''When activated set the cursor to a crosshair.'''
         self.canvas.setCursor(Qt.CrossCursor)
-        if not self.fetcher:
-            self.fetcher = QgsNetworkContentFetcher()
-            self.evloop = QEventLoop()
-            codec = QTextCodec.codecForName('UTF-8')
-            self.fetcher.finished.connect(self.evloop.quit)
         self.show()
         
     def unload(self):
@@ -84,6 +78,14 @@ class ReverseGeocodeTool(QgsMapTool):
     def show(self):
         self.reverseGeoCodeDialog.show()
         
+    def request(self, url):
+        fetcher = QgsNetworkContentFetcher()
+        fetcher.fetchContent(QUrl(url))
+        evloop = QEventLoop()
+        fetcher.finished.connect(evloop.quit)
+        evloop.exec_(QEventLoop.ExcludeUserInputEvents)
+        return fetcher.contentAsString()
+        
     def canvasReleaseEvent(self, event):
         # Make sure the point is transfored to 4326
         self.clearSelection()
@@ -92,10 +94,8 @@ class ReverseGeocodeTool(QgsMapTool):
         transform = QgsCoordinateTransform(canvasCRS, self.epsg4326, QgsProject.instance())
         pt = transform.transform(pt.x(), pt.y())
         url = '{}?format=json&lat={:f}&lon={:f}&zoom={:d}&addressdetails=0&polygon_text=1'.format(self.settings.reverseURL(), pt.y(), pt.x(), self.settings.levelOfDetail)
-        # print url
-        self.fetcher.fetchContent(QUrl(url))
-        self.evloop.exec_(QEventLoop.ExcludeUserInputEvents)
-        jsondata = self.fetcher.contentAsString()
+        # print( url )
+        jsondata = self.request(url)
 
         try:
             jd = json.loads(jsondata)
@@ -118,7 +118,7 @@ class ReverseGeocodeTool(QgsMapTool):
                 except:
                     pass
         except Exception:
-            self.setText("Error: "+data)
+            self.setText("Error: "+jsondata)
 
 
         if not self.reverseGeoCodeDialog.isVisible():

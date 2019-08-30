@@ -45,6 +45,14 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         '''The dialog is being shown. We need to initialize it.'''
         super(BulkNominatimDialog, self).showEvent(event)
         self.findFields()
+        
+    def request(self, url):
+        fetcher = QgsNetworkContentFetcher()
+        fetcher.fetchContent(QUrl(url))
+        evloop = QEventLoop()
+        fetcher.finished.connect(evloop.quit)
+        evloop.exec_(QEventLoop.ExcludeUserInputEvents)
+        return fetcher.contentAsString()
     
     def reverseGeocode(self):
         layer = self.mMapLayerComboBox.currentLayer()
@@ -52,6 +60,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.iface.messageBar().pushMessage("", "No valid point vector layer to reverse geocode" , level=QgsMessageBar.WARNING, duration=2)
             return
         
+        showDetails = int( self.detailedAddressCheckBox.isChecked())
         self.numAddress = layer.featureCount()
         self.numErrors = 0
         if self.numAddress > self.settings.maxAddress:
@@ -59,18 +68,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             return
             
         layername = self.layerLineEdit.text()
-        self.pointLayer = QgsVectorLayer("point?crs=epsg:4326", layername, "memory")
-        self.provider = self.pointLayer.dataProvider()
-        self.provider.addAttributes([QgsField("display_name", QVariant.String)])
-        self.pointLayer.updateFields()
-        if self.showLabelCheckBox.checkState():
-            # Display labels
-            label = QgsPalLayerSettings()
-            label.fieldName = 'display_name'
-            label.placement= QgsPalLayerSettings.AroundPoint
-            labeling = QgsVectorLayerSimpleLabeling(label)
-            self.pointLayer.setLabeling(labeling)
-            self.pointLayer.setLabelsEnabled(True)
+        self.createPointLayerReverse()
         
         layerCRS = layer.crs()
         epsg4326 = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -78,36 +76,57 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
 
         iter = layer.getFeatures()
         
-        fetcher = QgsNetworkContentFetcher()
-        evloop = QEventLoop()
-        codec = QTextCodec.codecForName('UTF-8')
-        fetcher.finished.connect(evloop.quit)
-        
         for feature in iter:
             # already know that this is a point vector layer
             pt = feature.geometry().asPoint()
             # make sure the coordinates are in EPSG:4326
             pt = transform.transform(pt.x(), pt.y())
+            newfeature = QgsFeature()
+            newfeature.setGeometry(QgsGeometry.fromPointXY(pt))
             lat = str(pt.y())
             lon = str(pt.x())
-            url = self.settings.reverseURL()+'?format=json&lat='+lat+'&lon='+lon+'&zoom=18&addressdetails=0'
-            fetcher.fetchContent(QUrl(url))
-            evloop.exec_(QEventLoop.ExcludeUserInputEvents)
-            jsondata = fetcher.contentAsString()
+            url = '{}?format=json&lat={}&lon={}&zoom=18&addressdetails={}'.format(self.settings.reverseURL(),lat,lon,showDetails)
+            jsondata = self.request(url)
+            # print(jsondata)
             address = ''
             try:
                 jd = json.loads(jsondata)
-                if len(jd) != 0:
-                    if 'display_name' in jd:
-                        address = jd['display_name']
-                if not address:
-                    self.numErrors += 1
+                if len(jd) == 0:
+                    raise ValueError('')
+                display_name = self.fieldValidate(jd, 'display_name')
+                if showDetails:
+                    osm_type = self.fieldValidate(jd, 'osm_type')
+                    osm_id = self.fieldValidate(jd, 'osm_id')
+                    house_number = ''
+                    road = ''
+                    neighbourhood = ''
+                    locality = ''
+                    town = ''
+                    city = ''
+                    county = ''
+                    state = ''
+                    postcode = ''
+                    country = ''
+                    country_code = ''
+                    if 'address' in jd:
+                        house_number = self.fieldValidate(jd['address'], 'house_number')
+                        road = self.fieldValidate(jd['address'], 'road')
+                        neighbourhood = self.fieldValidate(jd['address'], 'neighbourhood')
+                        locality = self.fieldValidate(jd['address'], 'locality')
+                        town = self.fieldValidate(jd['address'], 'town')
+                        city = self.fieldValidate(jd['address'], 'city')
+                        county = self.fieldValidate(jd['address'], 'county')
+                        state = self.fieldValidate(jd['address'], 'state')
+                        postcode = self.fieldValidate(jd['address'], 'postcode')
+                        country = self.fieldValidate(jd['address'], 'country')
+                        country_code = self.fieldValidate(jd['address'], 'country_code')
+                    feature.setAttributes([osm_type, osm_id, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                    self.provider.addFeatures([feature])
+                else:
+                    feature.setAttributes([display_name])
+                    self.provider.addFeatures([feature])
             except Exception:
                 self.numErrors += 1
-            newfeature = QgsFeature()
-            newfeature.setGeometry(QgsGeometry.fromPointXY(pt))
-            newfeature.setAttributes([address])
-            self.provider.addFeatures([newfeature])
         
         self.pointLayer.updateExtents()
         QgsProject.instance().addMapLayer(self.pointLayer)
@@ -161,11 +180,6 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         country_idx = self.countryComboBox.currentIndex() - 1
         postal_idx = self.postalCodeComboBox.currentIndex() - 1
         
-        fetcher = QgsNetworkContentFetcher()
-        evloop = QEventLoop()
-        codec = QTextCodec.codecForName('UTF-8')
-        fetcher.finished.connect(evloop.quit)
-        
         for feature in iter:
             self.isfirst = True
             if full_address_idx >= 0:
@@ -198,9 +212,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                     url += self.formatParam('postalcode', feature[postal_idx])
                     
             url += '&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
-            fetcher.fetchContent(QUrl(url))
-            evloop.exec_(QEventLoop.ExcludeUserInputEvents)
-            jsondata = fetcher.contentAsString()
+            jsondata = self.request(url)
+            # print(jsondata)
             try:
                 jd = json.loads(jsondata)
                 if len(jd) == 0:
@@ -218,6 +231,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
 
                     if self.detailedAddressCheckBox.checkState():
                         osm_type = self.fieldValidate(addr, 'osm_type')
+                        osm_id = self.fieldValidate(addr, 'osm_id')
                         osm_class = self.fieldValidate(addr, 'class')
                         type = self.fieldValidate(addr, 'type')
                         house_number = ''
@@ -243,7 +257,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                             postcode = self.fieldValidate(addr['address'], 'postcode')
                             country = self.fieldValidate(addr['address'], 'country')
                             country_code = self.fieldValidate(addr['address'], 'country_code')
-                        newfeature.setAttributes([osm_type, osm_class, type, address, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                        newfeature.setAttributes([osm_type, osm_id, osm_class, type, address, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
                         self.provider.addFeatures([newfeature])
                     else:
                         # Display only the resulting output address
@@ -305,19 +319,13 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         maxResults = self.maxResultsSpinBox.value()
         showDetails = int( self.detailedAddressCheckBox.isChecked())
         
-        fetcher = QgsNetworkContentFetcher()
-        evloop = QEventLoop()
-        codec = QTextCodec.codecForName('UTF-8')
-        fetcher.finished.connect(evloop.quit)
-        
         for address in addresses:
             # Replace internal spaces with + signs
             address2 = re.sub('\s+', '+', address)
             url = '{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
                 self.settings.searchURL(), address2, maxResults, showDetails)
-            fetcher.fetchContent(QUrl(url))
-            evloop.exec_(QEventLoop.ExcludeUserInputEvents)
-            jsondata = fetcher.contentAsString()
+            jsondata = self.request(url)
+            # print(jsondata)
             try:
                 jd = json.loads(jsondata)
                 if len(jd) == 0:
@@ -335,6 +343,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
 
                     if self.detailedAddressCheckBox.checkState():
                         osm_type = self.fieldValidate(addr, 'osm_type')
+                        osm_id = self.fieldValidate(addr, 'osm_id')
                         osm_class = self.fieldValidate(addr, 'class')
                         type = self.fieldValidate(addr, 'type')
                         house_number = ''
@@ -360,7 +369,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                             postcode = self.fieldValidate(addr['address'], 'postcode')
                             country = self.fieldValidate(addr['address'], 'country')
                             country_code = self.fieldValidate(addr['address'], 'country_code')
-                        feature.setAttributes([osm_type, osm_class, type, address, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
+                        feature.setAttributes([osm_type, osm_id, osm_class, type, address, display_name, house_number, road, neighbourhood, locality, town, city, county, state, postcode, country, country_code])
                         self.provider.addFeatures([feature])
                     else:
                         # Display only the resulting output address
@@ -385,6 +394,38 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             return str(data[name])
         return ''
         
+    def createPointLayerReverse(self):
+        layername = self.layerLineEdit.text()
+        self.pointLayer = QgsVectorLayer("point?crs=epsg:4326", layername, "memory")
+        self.provider = self.pointLayer.dataProvider()
+        if self.detailedAddressCheckBox.checkState():
+            self.provider.addAttributes([
+                QgsField("osm_type", QVariant.String),
+                QgsField("osm_id", QVariant.String),
+                QgsField("display_name", QVariant.String),
+                QgsField("house_number", QVariant.String),
+                QgsField("road", QVariant.String),
+                QgsField("neighbourhood", QVariant.String),
+                QgsField("locality", QVariant.String),
+                QgsField("town", QVariant.String),
+                QgsField("city", QVariant.String),
+                QgsField("county", QVariant.String),
+                QgsField("state", QVariant.String),
+                QgsField("postcode", QVariant.String),
+                QgsField("country", QVariant.String),
+                QgsField("country_code", QVariant.String)])
+        else:
+            self.provider.addAttributes([QgsField("display_name", QVariant.String)])
+        self.pointLayer.updateFields()
+        if self.showLabelCheckBox.checkState():
+            # Display labels
+            label = QgsPalLayerSettings()
+            label.fieldName = 'display_name'
+            label.placement= QgsPalLayerSettings.AroundPoint
+            labeling = QgsVectorLayerSimpleLabeling(label)
+            self.pointLayer.setLabeling(labeling)
+            self.pointLayer.setLabelsEnabled(True)
+        
     def createPointLayer(self):
         layername = self.layerLineEdit.text()
         self.pointLayer = QgsVectorLayer("point?crs=epsg:4326", layername, "memory")
@@ -392,6 +433,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         if self.detailedAddressCheckBox.checkState():
             self.provider.addAttributes([
                 QgsField("osm_type", QVariant.String),
+                QgsField("osm_id", QVariant.String),
                 QgsField("class", QVariant.String),
                 QgsField("type", QVariant.String),
                 QgsField("source_addr", QVariant.String),
