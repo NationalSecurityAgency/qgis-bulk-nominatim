@@ -213,7 +213,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
                     
             url += '&format=json&limit={}&polygon=0&addressdetails={}'.format(maxResults, showDetails)
             jsondata = self.request(url)
-            # print(jsondata)
+
             try:
                 jd = json.loads(jsondata)
                 if len(jd) == 0:
