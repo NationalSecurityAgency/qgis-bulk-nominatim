@@ -6,7 +6,7 @@ from qgis.PyQt import uic
 from qgis.PyQt.QtWidgets import QDockWidget
 from qgis.PyQt.QtGui import QColor
 from qgis.PyQt.QtCore import Qt, QUrl, pyqtSignal, QByteArray, QEventLoop, QTextCodec
-from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsNetworkAccessManager, QgsProject, QgsNetworkContentFetcher
+from qgis.core import QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsGeometry, QgsNetworkAccessManager, QgsProject, QgsNetworkContentFetcher, QgsWkbTypes
 from qgis.gui import QgsMapTool, QgsRubberBand, QgsVertexMarker
 from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
 
@@ -107,9 +107,15 @@ class ReverseGeocodeTool(QgsMapTool):
             try:
                 wkt = jd['geotext']
                 geometry = QgsGeometry.fromWkt(wkt)
-                geometry = self.transform_geom(geometry)
-                self.rubber.addGeometry(geometry, None)
-                self.rubber.show()
+                if geometry.wkbType() == QgsWkbTypes.Point:
+                    pt = geometry.asPoint()
+                    lon = pt.x()
+                    lat = pt.y()
+                    self.addMarker(lat, lon)
+                else:
+                    geometry = self.transform_geom(geometry)
+                    self.rubber.addGeometry(geometry, None)
+                    self.rubber.show()
             except KeyError:
                 try:
                     lon = float(jd['lon'])
