@@ -52,6 +52,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         evloop = QEventLoop()
         fetcher.finished.connect(evloop.quit)
         evloop.exec_(QEventLoop.ExcludeUserInputEvents)
+        fetcher.finished.disconnect(evloop.quit)
         return fetcher.contentAsString()
     
     def reverseGeocode(self):
