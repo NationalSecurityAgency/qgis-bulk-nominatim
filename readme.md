@@ -3,7 +3,7 @@
 The ***Bulk Nominatim QGIS Plugin*** interfaces with an OpenStreetMap nominatim service to provide geocoding of addresses and reverse geocoding of coordinates. This plugin is only recommended to be used with personal nominatim servers because OpenStreetMap does not permit bulk nominatim requests.
 
 ## Installation
-The plugin can be installed by downloading `bulknominatim.zip`, unzipping it and then moving the `bulknominatim` folder to `C:\Users\<Your User Name>\.qgis2\python\plugins`. Now launch QGIS and select ***Plugins->Manage and Install Plugins...*** from the menu. Click on the ***Installed*** tab on the left and make sure the check box next to ***Bulk Nominatim GeoCoding*** is checked. Click the ***Close*** button and you are ready to start address geocoding.
+The plugin can be installed by downloading the latest version from `https://github.com/NationalSecurityAgency/qgis-bulk-nominatim`. Launch QGIS and select ***Plugins->Manage and Install Plugins...*** from the menu. Click on the ***Install from ZIP*** tab on the left, click on the `...` button on the right to navigate to where you saved the bulk nominatim downloaded ZIP file and select it then click on the ***Install Plugin*** button. Click the ***Close*** button and you are ready to start address geocoding.
 
 <div style="text-align:center"><img src="doc/install.jpg" alt="Installing Plugin"></div>
 

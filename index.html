@@ -1,0 +1,83 @@
+<head>
+<style>
+body {
+    font:13.34px helvetica,arial,freesans,clean,sans-serif;
+    color:black;
+    line-height:1.4em;
+    background-color: #F8F8F8;
+    padding: 0.7em;
+}
+pre {
+    margin:1em 0;
+    font-size:12px;
+    background-color:#eee;
+    border:1px solid #ddd;
+    padding:5px;
+    line-height:1.5em;
+    color:#444;
+    overflow:auto;
+    -webkit-box-shadow:rgba(0,0,0,0.07) 0 1px 2px inset;
+    -webkit-border-radius:3px;
+    -moz-border-radius:3px;border-radius:3px;
+}
+pre code {
+    padding:0;
+    font-size:12px;
+    background-color:#eee;
+    border:none;
+}
+code {
+    font-size:12px;
+    background-color:#f8f8ff;
+    color:#444;
+    padding:0 .2em;
+    border:1px solid #dedede;
+}
+</style>
+</head>
+<body>
+<h1>Bulk Nominatim Plugin</h1>
+<p>The <strong><em>Bulk Nominatim QGIS Plugin</em></strong> interfaces with an OpenStreetMap nominatim service to provide geocoding of addresses and reverse geocoding of coordinates. This plugin is only recommended to be used with personal nominatim servers because OpenStreetMap does not permit bulk nominatim requests.</p>
+<h2>Installation</h2>
+<p>The plugin can be installed by downloading the latest version from <code>https://github.com/NationalSecurityAgency/qgis-bulk-nominatim</code>. Launch QGIS and select <strong><em>Plugins-&gt;Manage and Install Plugins...</em></strong> from the menu. Click on the <strong><em>Install from ZIP</em></strong> tab on the left, click on the <code>...</code> button on the right to navigate to where you saved the bulk nominatim downloaded ZIP file and select it then click on the <strong><em>Install Plugin</em></strong> button. Click the <strong><em>Close</em></strong> button and you are ready to start address geocoding.</p>
+<div style="text-align:center"><img src="doc/install.jpg" alt="Installing Plugin"></div>
+
+<h2>Bulk Nominatim Tools</h2>
+<p>The plugin <strong><em>Settings</em></strong> need to be configured to point to a nominatim endpoint. See the <strong><em>Settings</em></strong> section on how to do this. The plugin can be accessed from the <code>Plugins-&gt;Nominatim GeoCoding</code> menu or from the two tool bar icons.</p>
+<div style="text-align:center"><img src="doc/menu.jpg" alt="Nominatim GeoCoding"></div>
+
+<p>The menu items are:</p>
+<ul>
+<li><img src="images/icon.png" alt="Bulk GeoCoding"> <strong><em>Bulk GeoCoding</em></strong> - Main tool for bulk geocoding of addresses to coordinates and bulk reverse geocoding of coordinates to addresses.</li>
+<li><img src="images/reverse.png" alt="Reverse Point GeoCoding"> <strong><em>Reverse Point GeoCoding</em></strong> - This tool allows the user to click on the map to determine the closest address or feature.</li>
+<li><img src="images/settings.png" alt="Settings"> <strong><em>Settings</em></strong> - Configuration for the <strong>Nominatim Service URL</strong> as well as other settings.</li>
+<li><img src="images/help.png" alt="Help"> <strong><em>Help</em></strong> - Displays help information for the tools.</li>
+</ul>
+<p>Both <strong><em>Bulk GeoCoding</em></strong> and <strong><em>Reverse Point GeoCoding</em></strong> are installed on the tool bar for quick access.</p>
+<div style="text-align:center"><img src="doc/toolbar.jpg" alt="Toolbar"></div>
+
+<h3>Bulk GeoCoding</h3>
+<p>Selecting this tool provides 3 different methods of geocoding. All three return a new vector layer.</p>
+<div style="text-align:center"><img src="doc/bulk-geocoding.jpg" alt="Bulk Geocoding"></div>
+
+<ul>
+<li><strong><em>Geocode Table</em></strong> - Input is either a QGIS table or vector layer containing address information. <strong><em>Input Address Layer</em></strong> contains a list of tables and vector layer. Select one that contains the address information needed. The plugin will attempt to find matches for the individual address fields <em>Street Number</em>, <em>Street Name</em>, <em>City</em>, <em>County</em>, <em>State</em>, <em>Country</em>, and <em>Postal Code</em>. The address fields can also be manually selected. If one of the fields contains the entire address select it from <strong><em>Full Address Field</em></strong>. This overrides all the other field selections.</li>
+<li><strong><em>Geocode Addresses</em></strong> - This is a text area where you can paste in addresses - one per line. The addresses are address strings and not individual fields.</li>
+<li><strong><em>Reverse Geocode</em></strong> - Input is a points layer and it attempts to find the closest address for each point. For remote locations the closest feature may be an administrative boundary.</li>
+</ul>
+<p>Across the top are three tabs representing these three geocoding tools. The lower part of the dialog box has common functionality for the three tools and are:</p>
+<ul>
+<li><strong><em>Output Layer Name</em></strong> - This is the name of the vector layer that will be created in QGIS. Note that this is a memory vector layer and not a file layer. If you want to retain the results you will need to save the layer.</li>
+<li><strong><em>Maximum Results per Entry</em></strong> - For each address multiple results can be returned. (Not applicable for <strong><em>Reverse Geocode</em></strong>.)</li>
+<li><strong><em>Label Geocoded Points</em></strong> - Automatically show the labels in QGIS for the geocoded point.</li>
+<li><strong><em>Included Detailed Address Results</em></strong> - Returns an enhanced table of address details.</li>
+<li><strong><em>Results</em></strong> - Shows the results of the geocoding and any addresses that failed.</li>
+</ul>
+<p>Clicking on the <strong><em>OK</em></strong> button causes the plugin to start geocoding.</p>
+<h3>Reverse Point GeoCoding</h3>
+<p>Clicking on this tool allows the user to be able to click on the map and return the closet feature/address in a dockable window. Note that the closes feature may be an administrative boundary or another feature that is not that close to the point clicked on. If the nominatim service is using the latest software, the actual polygon or point of the located feature will be displayed.</p>
+<h2>Settings</h2>
+<p>In <strong><em>Settings</em></strong> the user can select the Nominatim Service URL endpoint, the maximum number of addresses to geocode and for reverse geocoding the level of detail where 0 represents the country and 18 the address number. Here is the dialog window.</p>
+<div style="text-align:center"><img src="doc/settings.jpg" alt="Settings"></div>
+
+<p>Please note that this plugin is designed to use commercial or personal Nominatim services. The OpenStreetMap URL displayed here is not for bulk use as it violates their policy and will result in the user being blocked from their site for a period of time.</p></body>
