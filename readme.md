@@ -16,8 +16,8 @@ The plugin ***Settings*** need to be configured to point to a nominatim endpoint
 
 The menu items are:
 
-* <img src="images/icon.png" alt="Bulk GeoCoding"> ***Bulk GeoCoding*** - Main tool for bulk geocoding of addresses to coordinates and bulk reverse geocoding of coordinates to addresses.
-* <img src="images/reverse.png" alt="Reverse Point GeoCoding"> ***Reverse Point GeoCoding*** - This tool allows the user to click on the map to determine the closest address or feature.
+* <img src="images/icon.png" alt="Bulk GeoCoding" width="24" height="24"> ***Bulk GeoCoding*** - Main tool for bulk geocoding of addresses to coordinates and bulk reverse geocoding of coordinates to addresses.
+* <img src="images/reverse.png" alt="Reverse Point GeoCoding" width="24" height="24"> ***Reverse Point GeoCoding*** - This tool allows the user to click on the map to determine the closest address or feature.
 * <img src="images/settings.png" alt="Settings"> ***Settings*** - Configuration for the **Nominatim Service URL** as well as other settings.
 * <img src="images/help.png" alt="Help"> ***Help*** - Displays help information for the tools.
 
