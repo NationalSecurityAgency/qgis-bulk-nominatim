@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>640</width>
-    <height>527</height>
+    <height>556</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -217,17 +217,14 @@
         </layout>
        </item>
        <item>
-        <spacer name="verticalSpacer">
-         <property name="orientation">
-          <enum>Qt::Vertical</enum>
+        <widget class="QCheckBox" name="freeformCheckBox">
+         <property name="text">
+          <string>Format individual fields as a free form query</string>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
+         <property name="checked">
+          <bool>false</bool>
          </property>
-        </spacer>
+        </widget>
        </item>
       </layout>
      </widget>
@@ -409,7 +406,7 @@
   <customwidget>
    <class>QgsMapLayerComboBox</class>
    <extends>QComboBox</extends>
-   <header>qgis.gui</header>
+   <header>qgsmaplayercombobox.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

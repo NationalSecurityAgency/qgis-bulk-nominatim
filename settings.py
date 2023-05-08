@@ -20,7 +20,7 @@ class SettingsWidget(QDialog, FORM_CLASS):
         self.maxAddress = int(settings.value('/BulkNominatim/maxAddress', 100))
         self.levelOfDetail = int(settings.value('/BulkNominatim/levelOfDetail', 18))
         self.nomServiceLineEdit.setText(self.nominatimURL)
-        self.maxRequestLineEdit.setText(str(self.maxAddress))
+        self.maxRequestSpinBox.setValue(self.maxAddress)
         
     def accept(self):
         '''Accept the settings and save them for next time.'''
@@ -28,10 +28,10 @@ class SettingsWidget(QDialog, FORM_CLASS):
         self.nominatimURL = self.nomServiceLineEdit.text().strip()
         settings.setValue('/BulkNominatim/URL', self.nominatimURL)
         try:
-            self.maxAddress = int(self.maxRequestLineEdit.text())
+            self.maxAddress = self.maxRequestSpinBox.value()
         except:
             self.maxAddress = 100
-            self.maxRequestLineEdit.setText(str(self.maxAddress))
+            self.maxRequestSpinBox.setValue(self.maxAddress)
         settings.setValue('/BulkNominatim/maxAddress', self.maxAddress)
         self.levelOfDetail = self.detailSpinBox.value()
         settings.setValue('/BulkNominatim/levelOfDetail', self.levelOfDetail)
@@ -39,7 +39,7 @@ class SettingsWidget(QDialog, FORM_CLASS):
         
     def restore(self):
         self.nomServiceLineEdit.setText(NOMURL)
-        self.maxRequestLineEdit.setText(str(100))
+        self.maxRequestSpinBox.setValue(100)
         self.detailSpinBox.setValue(18)
 
     def searchURL(self):

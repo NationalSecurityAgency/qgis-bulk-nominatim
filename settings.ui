@@ -42,9 +42,15 @@
          </widget>
         </item>
         <item row="0" column="1">
-         <widget class="QLineEdit" name="maxRequestLineEdit">
-          <property name="text">
-           <string>100</string>
+         <widget class="QSpinBox" name="maxRequestSpinBox">
+          <property name="minimum">
+           <number>1</number>
+          </property>
+          <property name="maximum">
+           <number>999999999</number>
+          </property>
+          <property name="value">
+           <number>100</number>
           </property>
          </widget>
         </item>

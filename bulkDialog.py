@@ -1,12 +1,12 @@
 import os
 import re
 import json
+from urllib.parse import quote_plus
 
-from qgis.core import (QgsVectorLayer, QgsField, QgsNetworkContentFetcher,
+from qgis.core import (Qgis, QgsVectorLayer, QgsField, QgsNetworkContentFetcher,
     QgsPalLayerSettings, QgsCoordinateReferenceSystem, QgsCoordinateTransform, QgsNetworkAccessManager,
     QgsFeature, QgsGeometry, QgsPointXY, QgsFeatureRequest, QgsProject, QgsMapLayerProxyModel,
     QgsVectorLayerSimpleLabeling)
-from qgis.gui import QgsMessageBar
 
 from qgis.PyQt.QtCore import QVariant, QUrl, QEventLoop, QTextCodec
 from qgis.PyQt.QtNetwork import QNetworkRequest, QNetworkReply
@@ -58,14 +58,14 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
     def reverseGeocode(self):
         layer = self.mMapLayerComboBox.currentLayer()
         if not layer:
-            self.iface.messageBar().pushMessage("", "No valid point vector layer to reverse geocode" , level=QgsMessageBar.WARNING, duration=2)
+            self.iface.messageBar().pushMessage("", "No valid point vector layer to reverse geocode" , level=Qgis.Warning, duration=6)
             return
         
         showDetails = int( self.detailedAddressCheckBox.isChecked())
         self.numAddress = layer.featureCount()
         self.numErrors = 0
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum geocodes to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum geocodes to process were exceeded. Please reduce the number and try again." , level=Qgis.Warning, duration=6)
             return
             
         layername = self.layerLineEdit.text()
@@ -154,20 +154,21 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
     def processAddressTable(self):
         layer = self.addressMapLayerComboBox.currentLayer()
         if not layer:
-            self.iface.messageBar().pushMessage("", "No valid table or vector layer to reverse geocode" , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "No valid table or vector layer to reverse geocode" , level=Qgis.Warning, duration=6)
             return
         self.numAddress = layer.featureCount()
         if not self.numAddress:
-            self.iface.messageBar().pushMessage("", "No addresses to geocode" , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "No addresses to geocode" , level=Qgis.Warning, duration=6)
             return
             
         self.numErrors = 0
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum geocodes to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum geocodes to process were exceeded. Please reduce the number and try again or change the maximum geocodes in Settings." , level=Qgis.Warning, duration=6)
             return
 
         maxResults = self.maxResultsSpinBox.value()
         showDetails = int( self.detailedAddressCheckBox.isChecked())
+        useFreeFormQuery = int(self.freeformCheckBox.isChecked())
         self.pointLayer = None
         self.createPointLayer()
 
@@ -185,8 +186,45 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             self.isfirst = True
             if full_address_idx >= 0:
                 address = feature[full_address_idx].strip()
-                address2 = re.sub('\s+', '+', address)
+                address2 = re.sub('\s+', ' ', address)
+                address2 = quote_plus(address2)
                 url = self.settings.searchURL() + '?q=' + address2
+            elif useFreeFormQuery:
+                strs = []
+                if street_name_idx >= 0:
+                    num = ''
+                    name = ''
+                    if street_num_idx  >= 0 and feature[street_num_idx]:
+                        num = ('{}'.format(feature[street_num_idx])).strip()
+                    if feature[street_name_idx]:
+                        name = ('{}'.format(feature[street_name_idx])).strip()
+                    if num:
+                        street = num+' '+name
+                    else:
+                        street = name
+                    if street:
+                        strs.append(street)
+                if city_idx >= 0:
+                    s = ('{}'.format(feature[city_idx])).strip()
+                    if s:
+                        strs.append(s)
+                if county_idx >= 0:
+                    s = ('{}'.format(feature[county_idx])).strip()
+                    if s:
+                        strs.append(s)
+                if state_idx >= 0:
+                    s = ('{}'.format(feature[state_idx])).strip()
+                    if s:
+                        strs.append(s)
+                if country_idx >= 0:
+                    s = ('{}'.format(feature[country_idx])).strip()
+                    if s:
+                        strs.append(s)
+                if postal_idx >= 0:
+                    s = ('{}'.format(feature[postal_idx])).strip()
+                    if s:
+                        strs.append(s)
+                url = self.settings.searchURL() + '?q=' + quote_plus(', '.join(strs))
             else:
                 address = ','.join([str(x) if x else '' for x in feature.attributes()])
                 url = self.settings.searchURL() + '?'
@@ -281,7 +319,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
     def formatParam(self, tag, value):
         if value:
             value = ('{}'.format(value)).strip()
-            value = re.sub('\s+', '%20', value)
+            value = re.sub('\s+', ' ', value)
+            value = quote_plus(value)
         else:
             value = ''
         if self.isfirst:
@@ -312,7 +351,7 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
             addresses.append(address)
             
         if self.numAddress > self.settings.maxAddress:
-            self.iface.messageBar().pushMessage("", "Maximum addresses to process were exceeded. Please reduce the number and try again." , level=QgsMessageBar.WARNING, duration=4)
+            self.iface.messageBar().pushMessage("", "Maximum addresses to process were exceeded. Please reduce the number and try again." , level=Qgis.Warning, duration=6)
             return
 
         if self.numAddress:
@@ -322,7 +361,8 @@ class BulkNominatimDialog(QDialog, FORM_CLASS):
         
         for address in addresses:
             # Replace internal spaces with + signs
-            address2 = re.sub('\s+', '+', address)
+            address2 = re.sub('\s+', ' ', address)
+            address2 = quote_plus(address2)
             url = '{}?q={}&format=json&limit={}&polygon=0&addressdetails={}'.format(
                 self.settings.searchURL(), address2, maxResults, showDetails)
             jsondata = self.request(url)
