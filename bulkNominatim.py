@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from qgis.PyQt.QtCore import QUrl
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction
+from qgis.PyQt.QtWidgets import QAction, QToolButton
 
 import os.path
 import webbrowser
@@ -16,6 +16,11 @@ class BulkNominatim(object):
 
     def initGui(self):
         """Initialize BulkNominatim GUI."""
+        # Set up a toolbar
+        self.toolbar = self.iface.addToolBar('Bulk Nominatim Toolbar')
+        self.toolbar.setObjectName('BulkNominatimToolbar')
+        self.toolbar.setToolTip('Bulk Nominatim Toolbar')
+
         # Initialize the Dialog Boxes
         self.settingsDialog = SettingsWidget(self.iface.mainWindow())
         self.reverseGeocodeTool = ReverseGeocodeTool(self.iface, self.settingsDialog)
@@ -27,7 +32,7 @@ class BulkNominatim(object):
         icon = QIcon(os.path.dirname(__file__) + "/images/icon.png")
         self.nominatimAction = QAction(icon, u"Bulk GeoCoding", self.iface.mainWindow())
         self.nominatimAction.triggered.connect(self.nominatimTool)
-        self.iface.addToolBarIcon(self.nominatimAction)
+        self.toolbar.addAction(self.nominatimAction)
         self.iface.addPluginToMenu(u"Nominatim GeoCoding", self.nominatimAction)
         
         # Add Interface for Reverse GeoCoding
@@ -35,7 +40,7 @@ class BulkNominatim(object):
         self.reverseGeocodeAction = QAction(icon, u"Reverse Point GeoCoding", self.iface.mainWindow())
         self.reverseGeocodeAction.triggered.connect(self.setReverseGeocodeTool)
         self.reverseGeocodeAction.setCheckable(True)
-        self.iface.addToolBarIcon(self.reverseGeocodeAction)
+        self.toolbar.addAction(self.reverseGeocodeAction)
         self.iface.addPluginToMenu(u"Nominatim GeoCoding", self.reverseGeocodeAction)
 
 
@@ -67,8 +72,8 @@ class BulkNominatim(object):
         self.iface.removePluginMenu(u"Nominatim GeoCoding", self.reverseGeocodeAction)
         self.iface.removePluginMenu(u"Nominatim GeoCoding", self.settingsAction)
         self.iface.removePluginMenu(u"Nominatim GeoCoding", self.helpAction)
-        self.iface.removeToolBarIcon(self.nominatimAction)
-        self.iface.removeToolBarIcon(self.reverseGeocodeAction)
+        # Remove Toolbar
+        del self.toolbar
         self.reverseGeocodeTool.unload()
     
     def setReverseGeocodeTool(self):

@@ -2,7 +2,7 @@
 name=Bulk Nominatim GeoCoding
 qgisMinimumVersion=3.4
 description=Bulk nominatim geocoding
-version=3.0.5
+version=3.0.6
 author=C Hamilton
 email=adenaculture@gmail.com
 about=Bulk nominatim geocoding
