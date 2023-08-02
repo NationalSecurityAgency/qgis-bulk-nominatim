@@ -77,8 +77,12 @@ class BulkNominatim(object):
         self.reverseGeocodeTool.unload()
     
     def setReverseGeocodeTool(self):
-        self.reverseGeocodeAction.setChecked(True)
-        self.canvas.setMapTool(self.reverseGeocodeTool)
+        if self.reverseGeocodeAction.isChecked():
+            self.reverseGeocodeAction.setChecked(False)
+            self.canvas.unsetMapTool(self.reverseGeocodeTool)
+        else:
+            self.reverseGeocodeAction.setChecked(True)
+            self.canvas.setMapTool(self.reverseGeocodeTool)
         
     def nominatimTool(self):
         """Display the dialog window."""
